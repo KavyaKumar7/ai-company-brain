@@ -1,7 +1,3 @@
-import Link from "next/link";
-
-import { logOut } from "@/app/dashboard/actions";
-import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -9,6 +5,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { AppShell } from "@/components/layout/app-shell";
+import { MetricCard } from "@/components/layout/metric-card";
+import { PageHeader } from "@/components/layout/page-header";
 import type { OrgContext } from "@/lib/auth/types";
 
 type DashboardShellProps = {
@@ -17,134 +16,59 @@ type DashboardShellProps = {
 
 export function DashboardShell({ context }: DashboardShellProps) {
   return (
-    <main className="min-h-screen bg-muted/30 px-6 py-8">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-        <header className="flex flex-col justify-between gap-4 rounded-lg border bg-background px-5 py-4 sm:flex-row sm:items-center">
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">
-              AI Company Brain
-            </p>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              Protected dashboard
-            </h1>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link
-              className={buttonVariants({ variant: "outline" })}
-              href="/learning"
-            >
-              My learning
-            </Link>
-            {context.role === "manager" ? (
-              <>
-                <Link
-                  className={buttonVariants({ variant: "outline" })}
-                  href="/admin/onboarding"
-                >
-                  Onboarding
-                </Link>
-                <Link
-                  className={buttonVariants({ variant: "outline" })}
-                  href="/admin/progress"
-                >
-                  Progress
-                </Link>
-              </>
-            ) : null}
-            {context.role === "admin" ? (
-              <>
-                <Link
-                  className={buttonVariants({ variant: "outline" })}
-                  href="/admin/settings"
-                >
-                  Settings
-                </Link>
-                <Link
-                  className={buttonVariants({ variant: "outline" })}
-                  href="/admin/departments"
-                >
-                  Departments
-                </Link>
-                <Link
-                  className={buttonVariants({ variant: "outline" })}
-                  href="/admin/onboarding"
-                >
-                  Onboarding
-                </Link>
-                <Link
-                  className={buttonVariants({ variant: "outline" })}
-                  href="/admin/progress"
-                >
-                  Progress
-                </Link>
-                <Link className={buttonVariants()} href="/admin/members">
-                  Members
-                </Link>
-              </>
-            ) : null}
-            <form action={logOut}>
-              <Button type="submit" variant="outline">
-                Log out
-              </Button>
-            </form>
-          </div>
-        </header>
+    <AppShell context={context}>
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+        <PageHeader
+          eyebrow="Workspace"
+          title="Dashboard"
+          description="Your secure company workspace foundation is active. Use the sidebar to manage people, departments, onboarding, and progress."
+        />
 
         <section className="grid gap-4 md:grid-cols-3">
-          <Card>
-            <CardHeader>
-              <CardTitle>Organization</CardTitle>
-              <CardDescription>Your active company workspace.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-lg font-medium">{context.organizationName}</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                ID: {context.orgId}
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Role</CardTitle>
-              <CardDescription>Loaded from server-side membership.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-lg font-medium capitalize">{context.role}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>User</CardTitle>
-              <CardDescription>Authenticated Supabase profile.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-lg font-medium">
-                {context.fullName || "Unnamed user"}
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {context.email}
-              </p>
-            </CardContent>
-          </Card>
+          <MetricCard
+            label="Organization"
+            value={context.organizationName}
+            helper="Current workspace"
+          />
+          <MetricCard
+            label="Role"
+            value={context.role}
+            helper="Server-side membership"
+          />
+          <MetricCard
+            label="Signed in"
+            value={context.fullName || "User"}
+            helper={context.email}
+          />
         </section>
 
-        <Card>
+        <Card className="shadow-sm">
           <CardHeader>
-            <CardTitle>Foundation ready</CardTitle>
+            <CardTitle>Product foundation</CardTitle>
             <CardDescription>
-              This app intentionally stops at authentication, organizations,
-              roles, and a basic protected dashboard.
+              The app now has the main B2B SaaS workflow spine: workspace,
+              roles, invites, departments, onboarding, learning, and progress.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ul className="list-disc space-y-2 pl-5 text-sm text-muted-foreground">
-              <li>No AI assistant has been added.</li>
-              <li>No document upload or storage has been added.</li>
-              <li>No onboarding, quiz, meeting, or analytics features exist yet.</li>
+            <ul className="grid gap-3 text-sm text-muted-foreground md:grid-cols-2">
+              <li className="rounded-lg border bg-muted/40 p-3">
+                Auth, organizations, roles, and RLS-backed membership are live.
+              </li>
+              <li className="rounded-lg border bg-muted/40 p-3">
+                Admins can manage departments, members, invites, and onboarding.
+              </li>
+              <li className="rounded-lg border bg-muted/40 p-3">
+                Employees can open assigned learning and complete lessons.
+              </li>
+              <li className="rounded-lg border bg-muted/40 p-3">
+                AI, document upload, storage, billing, and transcription remain
+                intentionally deferred.
+              </li>
             </ul>
           </CardContent>
         </Card>
       </div>
-    </main>
+    </AppShell>
   );
 }

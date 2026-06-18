@@ -1,5 +1,6 @@
 import { AdminHeader } from "@/components/admin/admin-header";
 import { StatusMessage } from "@/components/admin/status-message";
+import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -32,7 +33,7 @@ export default async function AdminSettingsPage({
   const organization = await getOrganizationById(context.orgId);
 
   return (
-    <main className="min-h-screen bg-muted/30 px-6 py-8">
+    <AppShell context={context}>
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
         <AdminHeader
           title="Organization settings"
@@ -67,6 +68,6 @@ export default async function AdminSettingsPage({
           </CardContent>
         </Card>
       </div>
-    </main>
+    </AppShell>
   );
 }

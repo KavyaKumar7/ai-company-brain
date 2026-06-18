@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { AdminHeader } from "@/components/admin/admin-header";
 import { StatusMessage } from "@/components/admin/status-message";
+import { AppShell } from "@/components/layout/app-shell";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -55,8 +56,8 @@ export default async function AdminOnboardingPathPage({
   ]);
 
   return (
-    <main className="min-h-screen bg-muted/30 px-6 py-8">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
+    <AppShell context={context}>
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
         <AdminHeader
           title={path.title}
           description="Build the manual module outline for this onboarding path."
@@ -374,6 +375,6 @@ export default async function AdminOnboardingPathPage({
           </CardContent>
         </Card>
       </div>
-    </main>
+    </AppShell>
   );
 }

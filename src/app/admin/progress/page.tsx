@@ -1,4 +1,6 @@
 import { AdminHeader } from "@/components/admin/admin-header";
+import { AppShell } from "@/components/layout/app-shell";
+import { MetricCard } from "@/components/layout/metric-card";
 import {
   Card,
   CardContent,
@@ -45,7 +47,7 @@ export default async function AdminProgressPage() {
   ];
 
   return (
-    <main className="min-h-screen bg-muted/30 px-6 py-8">
+    <AppShell context={context}>
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
         <AdminHeader
           title="Onboarding progress"
@@ -55,15 +57,12 @@ export default async function AdminProgressPage() {
 
         <section className="grid gap-4 md:grid-cols-4">
           {stats.map((stat) => (
-            <Card key={stat.label}>
-              <CardHeader>
-                <CardTitle>{stat.label}</CardTitle>
-                <CardDescription>{stat.helper}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-semibold">{stat.value}</p>
-              </CardContent>
-            </Card>
+            <MetricCard
+              helper={stat.helper}
+              key={stat.label}
+              label={stat.label}
+              value={stat.value}
+            />
           ))}
         </section>
 
@@ -141,6 +140,6 @@ export default async function AdminProgressPage() {
           </CardContent>
         </Card>
       </div>
-    </main>
+    </AppShell>
   );
 }

@@ -1,5 +1,6 @@
 import { AdminHeader } from "@/components/admin/admin-header";
 import { StatusMessage } from "@/components/admin/status-message";
+import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -38,8 +39,8 @@ export default async function AdminMembersPage({
   ]);
 
   return (
-    <main className="min-h-screen bg-muted/30 px-6 py-8">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
+    <AppShell context={context}>
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
         <AdminHeader
           title="Members"
           description="View active users and create invite records for this organization."
@@ -238,6 +239,6 @@ export default async function AdminMembersPage({
           </CardContent>
         </Card>
       </div>
-    </main>
+    </AppShell>
   );
 }

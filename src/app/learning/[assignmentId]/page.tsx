@@ -1,8 +1,9 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { completeLessonAction } from "@/app/learning/[assignmentId]/actions";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { AppShell } from "@/components/layout/app-shell";
+import { PageHeader } from "@/components/layout/page-header";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -42,28 +43,13 @@ export default async function LearningAssignmentPage({
       : Math.round((detail.completedLessons / detail.totalLessons) * 100);
 
   return (
-    <main className="min-h-screen bg-muted/30 px-6 py-8">
+    <AppShell context={context}>
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-        <header className="flex flex-col justify-between gap-4 rounded-lg border bg-background px-5 py-4 sm:flex-row sm:items-center">
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">
-              {context.organizationName}
-            </p>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              {detail.assignment.pathTitle}
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {detail.completedLessons} of {detail.totalLessons} lessons
-              completed · {progress}%
-            </p>
-          </div>
-          <Link
-            className={buttonVariants({ variant: "outline" })}
-            href="/learning"
-          >
-            My learning
-          </Link>
-        </header>
+        <PageHeader
+          eyebrow="My learning"
+          title={detail.assignment.pathTitle}
+          description={`${detail.completedLessons} of ${detail.totalLessons} lessons completed · ${progress}%`}
+        />
 
         {detail.modules.length === 0 ? (
           <Card>
@@ -139,6 +125,6 @@ export default async function LearningAssignmentPage({
           ))
         )}
       </div>
-    </main>
+    </AppShell>
   );
 }

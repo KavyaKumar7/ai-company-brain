@@ -20,14 +20,38 @@ create table if not exists public.lesson_completions (
   unique (assignment_id, lesson_id)
 );
 
-alter table public.onboarding_modules
-add constraint onboarding_modules_id_organization_id_key unique (id, organization_id);
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'onboarding_modules_id_organization_id_key'
+  ) then
+    alter table public.onboarding_modules
+    add constraint onboarding_modules_id_organization_id_key unique (id, organization_id);
+  end if;
 
-alter table public.onboarding_assignments
-add constraint onboarding_assignments_id_organization_id_key unique (id, organization_id);
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'onboarding_assignments_id_organization_id_key'
+  ) then
+    alter table public.onboarding_assignments
+    add constraint onboarding_assignments_id_organization_id_key unique (id, organization_id);
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'onboarding_lessons_id_organization_id_key'
+  ) then
+    alter table public.onboarding_lessons
+    add constraint onboarding_lessons_id_organization_id_key unique (id, organization_id);
+  end if;
+end $$;
 
 alter table public.onboarding_lessons
 drop constraint if exists onboarding_lessons_module_id_fkey;
+
+alter table public.onboarding_lessons
+drop constraint if exists onboarding_lessons_module_tenant_fkey;
 
 alter table public.onboarding_lessons
 add constraint onboarding_lessons_module_tenant_fkey
@@ -39,6 +63,9 @@ alter table public.lesson_completions
 drop constraint if exists lesson_completions_assignment_id_fkey;
 
 alter table public.lesson_completions
+drop constraint if exists lesson_completions_assignment_tenant_fkey;
+
+alter table public.lesson_completions
 add constraint lesson_completions_assignment_tenant_fkey
 foreign key (assignment_id, organization_id)
 references public.onboarding_assignments(id, organization_id)
@@ -48,6 +75,9 @@ alter table public.lesson_completions
 drop constraint if exists lesson_completions_lesson_id_fkey;
 
 alter table public.lesson_completions
+drop constraint if exists lesson_completions_lesson_tenant_fkey;
+
+alter table public.lesson_completions
 add constraint lesson_completions_lesson_tenant_fkey
 foreign key (lesson_id, organization_id)
 references public.onboarding_lessons(id, organization_id)
@@ -55,6 +85,9 @@ on delete cascade;
 
 alter table public.lesson_completions
 drop constraint if exists lesson_completions_user_id_fkey;
+
+alter table public.lesson_completions
+drop constraint if exists lesson_completions_member_tenant_fkey;
 
 alter table public.lesson_completions
 add constraint lesson_completions_member_tenant_fkey

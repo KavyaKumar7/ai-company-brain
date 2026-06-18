@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { AppShell } from "@/components/layout/app-shell";
+import { PageHeader } from "@/components/layout/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -25,27 +27,13 @@ export default async function LearningPage() {
   });
 
   return (
-    <main className="min-h-screen bg-muted/30 px-6 py-8">
+    <AppShell context={context}>
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-        <header className="flex flex-col justify-between gap-4 rounded-lg border bg-background px-5 py-4 sm:flex-row sm:items-center">
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">
-              {context.organizationName}
-            </p>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              My learning
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Assigned onboarding paths for your account.
-            </p>
-          </div>
-          <Link
-            className={buttonVariants({ variant: "outline" })}
-            href="/dashboard"
-          >
-            Dashboard
-          </Link>
-        </header>
+        <PageHeader
+          eyebrow={context.organizationName}
+          title="My learning"
+          description="Assigned onboarding paths for your account."
+        />
 
         <Card>
           <CardHeader>
@@ -96,6 +84,6 @@ export default async function LearningPage() {
           </CardContent>
         </Card>
       </div>
-    </main>
+    </AppShell>
   );
 }
