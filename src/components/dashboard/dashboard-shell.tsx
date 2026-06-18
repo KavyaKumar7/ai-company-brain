@@ -1,5 +1,7 @@
+import Link from "next/link";
+
 import { logOut } from "@/app/dashboard/actions";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -26,11 +28,52 @@ export function DashboardShell({ context }: DashboardShellProps) {
               Protected dashboard
             </h1>
           </div>
-          <form action={logOut}>
-            <Button type="submit" variant="outline">
-              Log out
-            </Button>
-          </form>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              className={buttonVariants({ variant: "outline" })}
+              href="/learning"
+            >
+              My learning
+            </Link>
+            {context.role === "manager" ? (
+              <Link
+                className={buttonVariants({ variant: "outline" })}
+                href="/admin/onboarding"
+              >
+                Onboarding
+              </Link>
+            ) : null}
+            {context.role === "admin" ? (
+              <>
+                <Link
+                  className={buttonVariants({ variant: "outline" })}
+                  href="/admin/settings"
+                >
+                  Settings
+                </Link>
+                <Link
+                  className={buttonVariants({ variant: "outline" })}
+                  href="/admin/departments"
+                >
+                  Departments
+                </Link>
+                <Link
+                  className={buttonVariants({ variant: "outline" })}
+                  href="/admin/onboarding"
+                >
+                  Onboarding
+                </Link>
+                <Link className={buttonVariants()} href="/admin/members">
+                  Members
+                </Link>
+              </>
+            ) : null}
+            <form action={logOut}>
+              <Button type="submit" variant="outline">
+                Log out
+              </Button>
+            </form>
+          </div>
         </header>
 
         <section className="grid gap-4 md:grid-cols-3">

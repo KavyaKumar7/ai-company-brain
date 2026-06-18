@@ -4,6 +4,7 @@ type LoginPageProps = {
   searchParams: Promise<{
     error?: string;
     message?: string;
+    next?: string;
   }>;
 };
 
@@ -12,7 +13,11 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-muted/30 px-6 py-12">
-      <LoginForm error={params.error} message={params.message} />
+      <LoginForm
+        error={params.error}
+        message={params.message}
+        next={params.next}
+      />
     </main>
   );
 }

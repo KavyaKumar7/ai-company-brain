@@ -16,6 +16,7 @@ function redirectWithError(message: string): never {
 export async function logIn(formData: FormData) {
   const email = getString(formData, "email").toLowerCase();
   const password = getString(formData, "password");
+  const next = getString(formData, "next") || "/dashboard";
 
   if (!email || !password) {
     redirectWithError("Please enter your email and password.");
@@ -31,5 +32,5 @@ export async function logIn(formData: FormData) {
     redirectWithError(error.message);
   }
 
-  redirect("/dashboard");
+  redirect(next.startsWith("/") ? next : "/dashboard");
 }

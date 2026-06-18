@@ -18,8 +18,9 @@ export async function signUp(formData: FormData) {
   const email = getString(formData, "email").toLowerCase();
   const password = getString(formData, "password");
   const organizationName = getString(formData, "organizationName");
+  const inviteToken = getString(formData, "inviteToken");
 
-  if (!fullName || !email || !password || !organizationName) {
+  if (!fullName || !email || !password || (!organizationName && !inviteToken)) {
     redirectWithError("Please complete every field.");
   }
 
@@ -37,6 +38,7 @@ export async function signUp(formData: FormData) {
       data: {
         full_name: fullName,
         organization_name: organizationName,
+        invite_token: inviteToken,
       },
       emailRedirectTo: `${appUrl}/auth/callback?next=/dashboard`,
     },

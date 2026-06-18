@@ -15,9 +15,10 @@ import { Label } from "@/components/ui/label";
 type LoginFormProps = {
   error?: string;
   message?: string;
+  next?: string;
 };
 
-export function LoginForm({ error, message }: LoginFormProps) {
+export function LoginForm({ error, message, next }: LoginFormProps) {
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
@@ -28,6 +29,7 @@ export function LoginForm({ error, message }: LoginFormProps) {
       </CardHeader>
       <CardContent>
         <form action={logIn} className="space-y-5">
+          {next ? <input name="next" type="hidden" value={next} /> : null}
           {message ? (
             <div className="rounded-lg border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
               {message}
