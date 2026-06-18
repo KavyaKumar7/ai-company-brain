@@ -7,6 +7,7 @@ import { requireRole } from "@/lib/auth/require-role";
 import type { AppRole } from "@/lib/auth/types";
 import {
   createOnboardingAssignment,
+  createOnboardingLesson,
   createOnboardingModule,
   createOnboardingPath,
   updateOnboardingPathStatus,
@@ -81,6 +82,33 @@ export async function createModuleAction(formData: FormData) {
 
   revalidatePath(pagePath);
   redirectWithParam(pagePath, "message", "Module added.");
+}
+
+export async function createLessonAction(formData: FormData) {
+  const context = await requireRole("manager");
+  const pathId = getString(formData, "pathId");
+  const moduleId = getString(formData, "moduleId");
+  const title = getString(formData, "title");
+  const content = getString(formData, "content") || null;
+  const orderIndex = getNumber(formData, "orderIndex", 1);
+  const estimatedMinutes = getNumber(formData, "estimatedMinutes", 5);
+  const pagePath = `/admin/onboarding/${pathId}`;
+
+  if (!pathId || !moduleId || !title) {
+    redirectWithParam(pagePath, "error", "Lesson title is required.");
+  }
+
+  await createOnboardingLesson({
+    orgId: context.orgId,
+    moduleId,
+    title,
+    content,
+    orderIndex,
+    estimatedMinutes,
+  });
+
+  revalidatePath(pagePath);
+  redirectWithParam(pagePath, "message", "Lesson added.");
 }
 
 export async function updatePathStatusAction(formData: FormData) {

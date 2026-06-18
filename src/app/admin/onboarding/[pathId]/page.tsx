@@ -21,6 +21,7 @@ import {
 
 import {
   assignPathAction,
+  createLessonAction,
   createModuleAction,
   updatePathStatusAction,
 } from "../actions";
@@ -44,7 +45,7 @@ export default async function AdminOnboardingPathPage({
     searchParams,
     requireRole("manager"),
   ]);
-  const { path, modules } = await getOnboardingPathWithModules({
+  const { path, modules, lessonsByModule } = await getOnboardingPathWithModules({
     orgId: context.orgId,
     pathId,
   });
@@ -183,6 +184,98 @@ export default async function AdminOnboardingPathPage({
                         {module.description}
                       </p>
                     ) : null}
+                    <div className="mt-4 border-t pt-4">
+                      <h4 className="text-sm font-medium">Lessons</h4>
+                      {(lessonsByModule.get(module.id) ?? []).length === 0 ? (
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          No lessons yet.
+                        </p>
+                      ) : (
+                        <div className="mt-2 space-y-2">
+                          {(lessonsByModule.get(module.id) ?? []).map(
+                            (lesson) => (
+                              <div
+                                className="rounded-md bg-muted/60 p-3 text-sm"
+                                key={lesson.id}
+                              >
+                                <div className="flex justify-between gap-3">
+                                  <span className="font-medium">
+                                    {lesson.orderIndex}. {lesson.title}
+                                  </span>
+                                  <span className="text-muted-foreground">
+                                    {lesson.estimatedMinutes} min
+                                  </span>
+                                </div>
+                                {lesson.content ? (
+                                  <p className="mt-1 whitespace-pre-wrap text-muted-foreground">
+                                    {lesson.content}
+                                  </p>
+                                ) : null}
+                              </div>
+                            )
+                          )}
+                        </div>
+                      )}
+                      <form action={createLessonAction} className="mt-4 grid gap-3">
+                        <input name="pathId" type="hidden" value={path.id} />
+                        <input name="moduleId" type="hidden" value={module.id} />
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor={`lesson-title-${module.id}`}>
+                              Lesson title
+                            </Label>
+                            <Input
+                              id={`lesson-title-${module.id}`}
+                              name="title"
+                              placeholder="What the employee should learn"
+                              required
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-2">
+                              <Label htmlFor={`lesson-order-${module.id}`}>
+                                Order
+                              </Label>
+                              <Input
+                                defaultValue={
+                                  (lessonsByModule.get(module.id) ?? []).length + 1
+                                }
+                                id={`lesson-order-${module.id}`}
+                                min={1}
+                                name="orderIndex"
+                                type="number"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor={`lesson-minutes-${module.id}`}>
+                                Minutes
+                              </Label>
+                              <Input
+                                defaultValue={5}
+                                id={`lesson-minutes-${module.id}`}
+                                min={1}
+                                name="estimatedMinutes"
+                                type="number"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor={`lesson-content-${module.id}`}>
+                            Lesson content
+                          </Label>
+                          <textarea
+                            className="min-h-24 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                            id={`lesson-content-${module.id}`}
+                            name="content"
+                            placeholder="Write the manual lesson content here."
+                          />
+                        </div>
+                        <Button className="w-fit" type="submit" variant="outline">
+                          Add lesson
+                        </Button>
+                      </form>
+                    </div>
                   </div>
                 ))}
               </div>

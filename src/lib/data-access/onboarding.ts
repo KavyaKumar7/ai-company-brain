@@ -25,6 +25,15 @@ export type OnboardingModule = {
   estimatedMinutes: number;
 };
 
+export type OnboardingLesson = {
+  id: string;
+  moduleId: string;
+  title: string;
+  content: string | null;
+  orderIndex: number;
+  estimatedMinutes: number;
+};
+
 export type OnboardingAssignment = {
   id: string;
   userId: string;
@@ -33,6 +42,21 @@ export type OnboardingAssignment = {
   status: string;
   dueDate: string | null;
   assignedAt: string;
+};
+
+export type LearningAssignmentDetail = {
+  assignment: MyOnboardingAssignment;
+  modules: Array<
+    OnboardingModule & {
+      lessons: Array<
+        OnboardingLesson & {
+          completed: boolean;
+        }
+      >;
+    }
+  >;
+  completedLessons: number;
+  totalLessons: number;
 };
 
 export type MyOnboardingAssignment = {
@@ -70,6 +94,15 @@ type ModuleRow = {
   path_id: string;
   title: string;
   description: string | null;
+  order_index: number;
+  estimated_minutes: number;
+};
+
+type LessonRow = {
+  id: string;
+  module_id: string;
+  title: string;
+  content: string | null;
   order_index: number;
   estimated_minutes: number;
 };
@@ -142,6 +175,17 @@ function mapModule(row: ModuleRow): OnboardingModule {
     pathId: row.path_id,
     title: row.title,
     description: row.description,
+    orderIndex: row.order_index,
+    estimatedMinutes: row.estimated_minutes,
+  };
+}
+
+function mapLesson(row: LessonRow): OnboardingLesson {
+  return {
+    id: row.id,
+    moduleId: row.module_id,
+    title: row.title,
+    content: row.content,
     orderIndex: row.order_index,
     estimatedMinutes: row.estimated_minutes,
   };
@@ -238,9 +282,34 @@ export async function getOnboardingPathWithModules({
     throw new Error(`Failed to load modules: ${modulesError.message}`);
   }
 
+  const moduleRows = ((modules ?? []) as ModuleRow[]).map(mapModule);
+  const moduleIds = moduleRows.map((module) => module.id);
+  const lessonsByModule = new Map<string, OnboardingLesson[]>();
+
+  if (moduleIds.length > 0) {
+    const { data: lessons, error: lessonsError } = await supabase
+      .from("onboarding_lessons")
+      .select("id, module_id, title, content, order_index, estimated_minutes")
+      .eq("organization_id", orgId)
+      .in("module_id", moduleIds)
+      .order("order_index", { ascending: true });
+
+    if (lessonsError) {
+      throw new Error(`Failed to load lessons: ${lessonsError.message}`);
+    }
+
+    ((lessons ?? []) as LessonRow[]).forEach((lessonRow) => {
+      const lesson = mapLesson(lessonRow);
+      const existing = lessonsByModule.get(lesson.moduleId) ?? [];
+      existing.push(lesson);
+      lessonsByModule.set(lesson.moduleId, existing);
+    });
+  }
+
   return {
     path: mapPath(path as PathRow),
-    modules: ((modules ?? []) as ModuleRow[]).map(mapModule),
+    modules: moduleRows,
+    lessonsByModule,
   };
 }
 
@@ -314,6 +383,43 @@ export async function createOnboardingModule({
 
   if (error) {
     throw new Error(`Failed to create module: ${error.message}`);
+  }
+
+  return data;
+}
+
+export async function createOnboardingLesson({
+  orgId,
+  moduleId,
+  title,
+  content,
+  orderIndex,
+  estimatedMinutes,
+}: {
+  orgId: string;
+  moduleId: string;
+  title: string;
+  content: string | null;
+  orderIndex: number;
+  estimatedMinutes: number;
+}) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("onboarding_lessons")
+    .insert({
+      organization_id: orgId,
+      module_id: moduleId,
+      title,
+      content,
+      order_index: orderIndex,
+      estimated_minutes: estimatedMinutes,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to create lesson: ${error.message}`);
   }
 
   return data;
@@ -448,6 +554,185 @@ export async function listMyOnboardingAssignments({
       assignedAt: assignment.assigned_at,
     } satisfies MyOnboardingAssignment;
   });
+}
+
+export async function getMyLearningAssignment({
+  orgId,
+  userId,
+  assignmentId,
+}: {
+  orgId: string;
+  userId: string;
+  assignmentId: string;
+}): Promise<LearningAssignmentDetail> {
+  const supabase = await createClient();
+
+  const { data: assignmentRow, error: assignmentError } = await supabase
+    .from("onboarding_assignments")
+    .select(
+      `
+        id,
+        path_id,
+        status,
+        due_date,
+        assigned_at,
+        onboarding_paths (
+          title,
+          description,
+          status
+        )
+      `
+    )
+    .eq("organization_id", orgId)
+    .eq("user_id", userId)
+    .eq("id", assignmentId)
+    .single();
+
+  if (assignmentError) {
+    throw new Error(`Failed to load assignment: ${assignmentError.message}`);
+  }
+
+  const assignmentData = assignmentRow as MyAssignmentRow;
+  const path = normalizePath(assignmentData.onboarding_paths);
+  const assignment = {
+    id: assignmentData.id,
+    pathId: assignmentData.path_id,
+    pathTitle: path?.title ?? "Untitled path",
+    pathDescription: path?.description ?? null,
+    pathStatus: path?.status ?? "unknown",
+    status: assignmentData.status,
+    dueDate: assignmentData.due_date,
+    assignedAt: assignmentData.assigned_at,
+  } satisfies MyOnboardingAssignment;
+
+  const { data: modules, error: modulesError } = await supabase
+    .from("onboarding_modules")
+    .select("id, path_id, title, description, order_index, estimated_minutes")
+    .eq("organization_id", orgId)
+    .eq("path_id", assignment.pathId)
+    .order("order_index", { ascending: true });
+
+  if (modulesError) {
+    throw new Error(`Failed to load modules: ${modulesError.message}`);
+  }
+
+  const moduleRows = ((modules ?? []) as ModuleRow[]).map(mapModule);
+  const moduleIds = moduleRows.map((module) => module.id);
+  const lessonsByModule = new Map<string, OnboardingLesson[]>();
+
+  if (moduleIds.length > 0) {
+    const { data: lessons, error: lessonsError } = await supabase
+      .from("onboarding_lessons")
+      .select("id, module_id, title, content, order_index, estimated_minutes")
+      .eq("organization_id", orgId)
+      .in("module_id", moduleIds)
+      .order("order_index", { ascending: true });
+
+    if (lessonsError) {
+      throw new Error(`Failed to load lessons: ${lessonsError.message}`);
+    }
+
+    ((lessons ?? []) as LessonRow[]).forEach((lessonRow) => {
+      const lesson = mapLesson(lessonRow);
+      const existing = lessonsByModule.get(lesson.moduleId) ?? [];
+      existing.push(lesson);
+      lessonsByModule.set(lesson.moduleId, existing);
+    });
+  }
+
+  const { data: completions, error: completionsError } = await supabase
+    .from("lesson_completions")
+    .select("lesson_id")
+    .eq("organization_id", orgId)
+    .eq("assignment_id", assignment.id)
+    .eq("user_id", userId);
+
+  if (completionsError) {
+    throw new Error(`Failed to load completions: ${completionsError.message}`);
+  }
+
+  const completedLessonIds = new Set(
+    ((completions ?? []) as { lesson_id: string }[]).map(
+      (completion) => completion.lesson_id
+    )
+  );
+  let totalLessons = 0;
+  let completedLessons = 0;
+
+  const modulesWithLessons = moduleRows.map((module) => {
+    const lessons = (lessonsByModule.get(module.id) ?? []).map((lesson) => {
+      const completed = completedLessonIds.has(lesson.id);
+      totalLessons += 1;
+      if (completed) {
+        completedLessons += 1;
+      }
+
+      return { ...lesson, completed };
+    });
+
+    return { ...module, lessons };
+  });
+
+  return {
+    assignment,
+    modules: modulesWithLessons,
+    completedLessons,
+    totalLessons,
+  };
+}
+
+export async function completeLesson({
+  orgId,
+  assignmentId,
+  lessonId,
+  userId,
+}: {
+  orgId: string;
+  assignmentId: string;
+  lessonId: string;
+  userId: string;
+}) {
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("lesson_completions").upsert(
+    {
+      organization_id: orgId,
+      assignment_id: assignmentId,
+      lesson_id: lessonId,
+      user_id: userId,
+    },
+    { onConflict: "assignment_id,lesson_id" }
+  );
+
+  if (error) {
+    throw new Error(`Failed to complete lesson: ${error.message}`);
+  }
+
+  const detail = await getMyLearningAssignment({
+    orgId,
+    userId,
+    assignmentId,
+  });
+
+  if (detail.totalLessons > 0 && detail.completedLessons === detail.totalLessons) {
+    await supabase
+      .from("onboarding_assignments")
+      .update({
+        status: "completed",
+        completed_at: new Date().toISOString(),
+      })
+      .eq("organization_id", orgId)
+      .eq("id", assignmentId)
+      .eq("user_id", userId);
+  } else {
+    await supabase
+      .from("onboarding_assignments")
+      .update({ status: "in_progress" })
+      .eq("organization_id", orgId)
+      .eq("id", assignmentId)
+      .eq("user_id", userId)
+      .neq("status", "completed");
+  }
 }
 
 export async function updateOnboardingPathStatus({

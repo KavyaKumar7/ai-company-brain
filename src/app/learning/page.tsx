@@ -80,6 +80,15 @@ export default async function LearningPage() {
                         </p>
                       </div>
                     </div>
+                    <Link
+                      className={buttonVariants({
+                        variant: "outline",
+                        className: "mt-4 w-fit",
+                      })}
+                      href={`/learning/${assignment.id}`}
+                    >
+                      Open path
+                    </Link>
                   </div>
                 ))}
               </div>
