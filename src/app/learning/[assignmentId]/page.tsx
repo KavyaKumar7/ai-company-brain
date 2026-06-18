@@ -11,6 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { getOrgContext } from "@/lib/auth/get-org-context";
 import { getMyLearningAssignment } from "@/lib/data-access/onboarding";
 
@@ -41,6 +42,7 @@ export default async function LearningAssignmentPage({
     detail.totalLessons === 0
       ? 0
       : Math.round((detail.completedLessons / detail.totalLessons) * 100);
+  const isCancelled = detail.assignment.status === "cancelled";
 
   return (
     <AppShell context={context}>
@@ -50,6 +52,39 @@ export default async function LearningAssignmentPage({
           title={detail.assignment.pathTitle}
           description={`${detail.completedLessons} of ${detail.totalLessons} lessons completed · ${progress}%`}
         />
+
+        {isCancelled ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Assignment cancelled</CardTitle>
+              <CardDescription>
+                This onboarding assignment is no longer active. Contact your
+                manager if you think it should be restored.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        ) : null}
+
+        <Card>
+          <CardContent className="flex flex-col gap-4 pt-6">
+            <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+              <div>
+                <p className="text-sm font-medium">Overall progress</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {detail.completedLessons} completed out of{" "}
+                  {detail.totalLessons} lessons.
+                </p>
+              </div>
+              <StatusBadge status={detail.assignment.status} />
+            </div>
+            <div className="h-3 rounded-full bg-muted">
+              <div
+                className="h-3 rounded-full bg-primary transition-all"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </CardContent>
+        </Card>
 
         {detail.modules.length === 0 ? (
           <Card>
@@ -92,9 +127,9 @@ export default async function LearningAssignmentPage({
                             </p>
                           </div>
                           {lesson.completed ? (
-                            <span className="h-fit rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
-                              Complete
-                            </span>
+                            <StatusBadge className="h-fit" status="completed" />
+                          ) : isCancelled ? (
+                            <StatusBadge className="h-fit" status="cancelled" />
                           ) : (
                             <form action={completeLessonAction}>
                               <input

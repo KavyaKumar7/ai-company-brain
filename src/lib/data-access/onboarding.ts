@@ -79,6 +79,7 @@ export type OnboardingProgressSummary = {
   totalAssignments: number;
   completedAssignments: number;
   inProgressAssignments: number;
+  cancelledAssignments: number;
   overdueAssignments: number;
   averageProgress: number;
   rows: OnboardingProgressRow[];
@@ -594,6 +595,7 @@ export async function listMyOnboardingAssignments({
     )
     .eq("organization_id", orgId)
     .eq("user_id", userId)
+    .neq("status", "cancelled")
     .order("assigned_at", { ascending: false });
 
   if (error) {
@@ -754,6 +756,22 @@ export async function completeLesson({
 }) {
   const supabase = await createClient();
 
+  const { data: assignment, error: assignmentError } = await supabase
+    .from("onboarding_assignments")
+    .select("id, status")
+    .eq("organization_id", orgId)
+    .eq("id", assignmentId)
+    .eq("user_id", userId)
+    .single();
+
+  if (assignmentError) {
+    throw new Error(`Failed to load assignment: ${assignmentError.message}`);
+  }
+
+  if (assignment.status === "cancelled") {
+    throw new Error("This assignment has been cancelled.");
+  }
+
   const { error } = await supabase.from("lesson_completions").upsert(
     {
       organization_id: orgId,
@@ -793,6 +811,37 @@ export async function completeLesson({
       .eq("user_id", userId)
       .neq("status", "completed");
   }
+}
+
+export async function updateOnboardingAssignmentStatus({
+  orgId,
+  assignmentId,
+  status,
+}: {
+  orgId: string;
+  assignmentId: string;
+  status: "assigned" | "in_progress" | "completed" | "cancelled";
+}) {
+  const supabase = await createClient();
+
+  const completedAt = status === "completed" ? new Date().toISOString() : null;
+
+  const { data, error } = await supabase
+    .from("onboarding_assignments")
+    .update({
+      status,
+      completed_at: completedAt,
+    })
+    .eq("organization_id", orgId)
+    .eq("id", assignmentId)
+    .select("id")
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to update assignment: ${error.message}`);
+  }
+
+  return data;
 }
 
 export async function updateOnboardingPathStatus({
@@ -967,19 +1016,24 @@ export async function getOnboardingProgressSummary(
   const inProgressAssignments = rows.filter(
     (row) => row.assignmentStatus === "in_progress"
   ).length;
+  const cancelledAssignments = rows.filter(
+    (row) => row.assignmentStatus === "cancelled"
+  ).length;
   const overdueAssignments = rows.filter((row) => row.overdue).length;
+  const activeRows = rows.filter((row) => row.assignmentStatus !== "cancelled");
   const averageProgress =
-    totalAssignments === 0
+    activeRows.length === 0
       ? 0
       : Math.round(
-          rows.reduce((sum, row) => sum + row.progressPercent, 0) /
-            totalAssignments
+          activeRows.reduce((sum, row) => sum + row.progressPercent, 0) /
+            activeRows.length
         );
 
   return {
     totalAssignments,
     completedAssignments,
     inProgressAssignments,
+    cancelledAssignments,
     overdueAssignments,
     averageProgress,
     rows,

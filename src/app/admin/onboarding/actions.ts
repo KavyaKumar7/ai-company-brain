@@ -10,11 +10,18 @@ import {
   createOnboardingLesson,
   createOnboardingModule,
   createOnboardingPath,
+  updateOnboardingAssignmentStatus,
   updateOnboardingPathStatus,
 } from "@/lib/data-access/onboarding";
 
 const allowedRoles = new Set<AppRole>(["admin", "manager", "employee"]);
 const allowedStatuses = new Set(["draft", "published", "archived"]);
+const allowedAssignmentStatuses = new Set([
+  "assigned",
+  "in_progress",
+  "completed",
+  "cancelled",
+]);
 
 function getString(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -159,4 +166,31 @@ export async function assignPathAction(formData: FormData) {
 
   revalidatePath(pagePath);
   redirectWithParam(pagePath, "message", "Path assigned.");
+}
+
+export async function updateAssignmentStatusAction(formData: FormData) {
+  const context = await requireRole("manager");
+  const pathId = getString(formData, "pathId");
+  const assignmentId = getString(formData, "assignmentId");
+  const status = getString(formData, "status") as
+    | "assigned"
+    | "in_progress"
+    | "completed"
+    | "cancelled";
+  const pagePath = `/admin/onboarding/${pathId}`;
+
+  if (!pathId || !assignmentId || !allowedAssignmentStatuses.has(status)) {
+    redirectWithParam(pagePath, "error", "Choose a valid assignment status.");
+  }
+
+  await updateOnboardingAssignmentStatus({
+    orgId: context.orgId,
+    assignmentId,
+    status,
+  });
+
+  revalidatePath(pagePath);
+  revalidatePath("/admin/progress");
+  revalidatePath("/learning");
+  redirectWithParam(pagePath, "message", "Assignment updated.");
 }

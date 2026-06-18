@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { requireRole } from "@/lib/auth/require-role";
 import { listOrganizationMembers } from "@/lib/data-access/memberships";
 import {
@@ -24,6 +25,7 @@ import {
   assignPathAction,
   createLessonAction,
   createModuleAction,
+  updateAssignmentStatusAction,
   updatePathStatusAction,
 } from "../actions";
 
@@ -36,6 +38,14 @@ type OnboardingPathPageProps = {
     message?: string;
   }>;
 };
+
+function formatDate(value: string | null) {
+  if (!value) {
+    return "No due date";
+  }
+
+  return new Date(value).toLocaleDateString();
+}
 
 export default async function AdminOnboardingPathPage({
   params,
@@ -74,6 +84,9 @@ export default async function AdminOnboardingPathPage({
             </CardDescription>
           </CardHeader>
           <CardContent>
+            <div className="mb-4">
+              <StatusBadge status={path.status} />
+            </div>
             <form action={updatePathStatusAction} className="flex flex-col gap-4 sm:flex-row sm:items-end">
               <input name="pathId" type="hidden" value={path.id} />
               <div className="space-y-2">
@@ -349,6 +362,7 @@ export default async function AdminOnboardingPathPage({
                       <th className="py-2 pr-4 font-medium">Email</th>
                       <th className="py-2 pr-4 font-medium">Status</th>
                       <th className="py-2 pr-4 font-medium">Due</th>
+                      <th className="py-2 pr-4 font-medium">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -360,11 +374,43 @@ export default async function AdminOnboardingPathPage({
                         <td className="py-3 pr-4 text-muted-foreground">
                           {assignment.userEmail}
                         </td>
-                        <td className="py-3 pr-4 capitalize">
-                          {assignment.status}
+                        <td className="py-3 pr-4">
+                          <StatusBadge status={assignment.status} />
                         </td>
                         <td className="py-3 pr-4 text-muted-foreground">
-                          {assignment.dueDate ?? "No due date"}
+                          {formatDate(assignment.dueDate)}
+                        </td>
+                        <td className="py-3 pr-4">
+                          <form action={updateAssignmentStatusAction}>
+                            <input name="pathId" type="hidden" value={path.id} />
+                            <input
+                              name="assignmentId"
+                              type="hidden"
+                              value={assignment.id}
+                            />
+                            <input
+                              name="status"
+                              type="hidden"
+                              value={
+                                assignment.status === "cancelled"
+                                  ? "assigned"
+                                  : "cancelled"
+                              }
+                            />
+                            <Button
+                              size="sm"
+                              type="submit"
+                              variant={
+                                assignment.status === "cancelled"
+                                  ? "outline"
+                                  : "destructive"
+                              }
+                            >
+                              {assignment.status === "cancelled"
+                                ? "Reactivate"
+                                : "Cancel"}
+                            </Button>
+                          </form>
                         </td>
                       </tr>
                     ))}

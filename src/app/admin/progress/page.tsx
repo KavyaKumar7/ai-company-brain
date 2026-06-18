@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { requireRole } from "@/lib/auth/require-role";
 import { getOnboardingProgressSummary } from "@/lib/data-access/onboarding";
 
@@ -40,9 +41,19 @@ export default async function AdminProgressPage() {
       helper: "Currently being worked on",
     },
     {
+      label: "Completed",
+      value: summary.completedAssignments,
+      helper: "Finished assignments",
+    },
+    {
       label: "Overdue",
       value: summary.overdueAssignments,
       helper: "Past due and incomplete",
+    },
+    {
+      label: "Cancelled",
+      value: summary.cancelledAssignments,
+      helper: "Removed from active averages",
     },
   ];
 
@@ -55,7 +66,7 @@ export default async function AdminProgressPage() {
           role={context.role}
         />
 
-        <section className="grid gap-4 md:grid-cols-4">
+        <section className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
           {stats.map((stat) => (
             <MetricCard
               helper={stat.helper}
@@ -121,12 +132,12 @@ export default async function AdminProgressPage() {
                           {row.completedLessons}/{row.totalLessons}
                         </td>
                         <td className="py-3 pr-4">
-                          <span className="capitalize">{row.assignmentStatus}</span>
-                          {row.overdue ? (
-                            <span className="ml-2 rounded-full bg-destructive/10 px-2 py-1 text-xs text-destructive">
-                              Overdue
-                            </span>
-                          ) : null}
+                          <div className="flex flex-wrap gap-2">
+                            <StatusBadge status={row.assignmentStatus} />
+                            {row.overdue ? (
+                              <StatusBadge status="overdue" />
+                            ) : null}
+                          </div>
                         </td>
                         <td className="py-3 pr-4 text-muted-foreground">
                           {formatDate(row.dueDate)}

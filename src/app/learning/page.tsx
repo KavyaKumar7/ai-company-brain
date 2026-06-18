@@ -11,6 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { getOrgContext } from "@/lib/auth/get-org-context";
 import { listMyOnboardingAssignments } from "@/lib/data-access/onboarding";
 
@@ -61,8 +62,8 @@ export default async function LearningPage() {
                           </p>
                         ) : null}
                       </div>
-                      <div className="text-sm text-muted-foreground sm:text-right">
-                        <p className="capitalize">{assignment.status}</p>
+                      <div className="flex flex-col gap-2 text-sm text-muted-foreground sm:items-end">
+                        <StatusBadge status={assignment.status} />
                         <p>
                           Due: {assignment.dueDate ?? "No due date"}
                         </p>
