@@ -37,6 +37,7 @@ export default async function AdminSettingsPage({
         <AdminHeader
           title="Organization settings"
           description="Manage the basic workspace details for your company."
+          role={context.role}
         />
 
         <Card>

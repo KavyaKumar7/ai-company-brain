@@ -37,6 +37,7 @@ export default async function AdminDepartmentsPage({
         <AdminHeader
           title="Departments"
           description="Create departments now so onboarding paths and manager views can be scoped later."
+          role={context.role}
         />
 
         <StatusMessage error={params.error} message={params.message} />

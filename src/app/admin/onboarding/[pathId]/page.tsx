@@ -60,6 +60,7 @@ export default async function AdminOnboardingPathPage({
         <AdminHeader
           title={path.title}
           description="Build the manual module outline for this onboarding path."
+          role={context.role}
         />
 
         <StatusMessage error={pageParams.error} message={pageParams.message} />

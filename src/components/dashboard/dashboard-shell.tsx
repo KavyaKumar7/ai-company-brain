@@ -36,12 +36,20 @@ export function DashboardShell({ context }: DashboardShellProps) {
               My learning
             </Link>
             {context.role === "manager" ? (
-              <Link
-                className={buttonVariants({ variant: "outline" })}
-                href="/admin/onboarding"
-              >
-                Onboarding
-              </Link>
+              <>
+                <Link
+                  className={buttonVariants({ variant: "outline" })}
+                  href="/admin/onboarding"
+                >
+                  Onboarding
+                </Link>
+                <Link
+                  className={buttonVariants({ variant: "outline" })}
+                  href="/admin/progress"
+                >
+                  Progress
+                </Link>
+              </>
             ) : null}
             {context.role === "admin" ? (
               <>
@@ -62,6 +70,12 @@ export function DashboardShell({ context }: DashboardShellProps) {
                   href="/admin/onboarding"
                 >
                   Onboarding
+                </Link>
+                <Link
+                  className={buttonVariants({ variant: "outline" })}
+                  href="/admin/progress"
+                >
+                  Progress
                 </Link>
                 <Link className={buttonVariants()} href="/admin/members">
                   Members

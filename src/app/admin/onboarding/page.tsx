@@ -43,6 +43,7 @@ export default async function AdminOnboardingPage({
         <AdminHeader
           title="Onboarding"
           description="Create manual onboarding paths now. AI generation comes later."
+          role={context.role}
         />
 
         <StatusMessage error={params.error} message={params.message} />

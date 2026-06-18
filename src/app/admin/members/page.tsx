@@ -43,6 +43,7 @@ export default async function AdminMembersPage({
         <AdminHeader
           title="Members"
           description="View active users and create invite records for this organization."
+          role={context.role}
         />
 
         <StatusMessage error={params.error} message={params.message} />

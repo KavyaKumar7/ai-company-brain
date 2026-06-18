@@ -59,6 +59,31 @@ export type LearningAssignmentDetail = {
   totalLessons: number;
 };
 
+export type OnboardingProgressRow = {
+  assignmentId: string;
+  pathId: string;
+  pathTitle: string;
+  userId: string;
+  userEmail: string;
+  userName: string | null;
+  assignmentStatus: string;
+  dueDate: string | null;
+  assignedAt: string;
+  totalLessons: number;
+  completedLessons: number;
+  progressPercent: number;
+  overdue: boolean;
+};
+
+export type OnboardingProgressSummary = {
+  totalAssignments: number;
+  completedAssignments: number;
+  inProgressAssignments: number;
+  overdueAssignments: number;
+  averageProgress: number;
+  rows: OnboardingProgressRow[];
+};
+
 export type MyOnboardingAssignment = {
   id: string;
   pathId: string;
@@ -121,6 +146,33 @@ type AssignmentRow = {
     | {
         email: string;
         full_name: string | null;
+      }[]
+    | null;
+};
+
+type AssignmentProgressRow = {
+  id: string;
+  user_id: string;
+  path_id: string;
+  status: string;
+  due_date: string | null;
+  assigned_at: string;
+  profiles:
+    | {
+        email: string;
+        full_name: string | null;
+      }
+    | {
+        email: string;
+        full_name: string | null;
+      }[]
+    | null;
+  onboarding_paths:
+    | {
+        title: string;
+      }
+    | {
+        title: string;
       }[]
     | null;
 };
@@ -200,6 +252,14 @@ function normalizeProfile(row: AssignmentRow["profiles"]) {
 }
 
 function normalizePath(row: MyAssignmentRow["onboarding_paths"]) {
+  if (Array.isArray(row)) {
+    return row[0] ?? null;
+  }
+
+  return row;
+}
+
+function normalizeProgressPath(row: AssignmentProgressRow["onboarding_paths"]) {
   if (Array.isArray(row)) {
     return row[0] ?? null;
   }
@@ -759,4 +819,169 @@ export async function updateOnboardingPathStatus({
   }
 
   return data;
+}
+
+export async function getOnboardingProgressSummary(
+  orgId: string
+): Promise<OnboardingProgressSummary> {
+  const supabase = await createClient();
+
+  const { data: assignments, error: assignmentsError } = await supabase
+    .from("onboarding_assignments")
+    .select(
+      `
+        id,
+        user_id,
+        path_id,
+        status,
+        due_date,
+        assigned_at,
+        profiles (
+          email,
+          full_name
+        ),
+        onboarding_paths (
+          title
+        )
+      `
+    )
+    .eq("organization_id", orgId)
+    .order("assigned_at", { ascending: false });
+
+  if (assignmentsError) {
+    throw new Error(`Failed to load progress: ${assignmentsError.message}`);
+  }
+
+  const assignmentRows = (assignments ?? []) as AssignmentProgressRow[];
+  const pathIds = [...new Set(assignmentRows.map((row) => row.path_id))];
+  const assignmentIds = assignmentRows.map((row) => row.id);
+  const totalLessonsByPath = new Map<string, number>();
+  const completedLessonsByAssignment = new Map<string, number>();
+
+  if (pathIds.length > 0) {
+    const { data: modules, error: modulesError } = await supabase
+      .from("onboarding_modules")
+      .select("id, path_id")
+      .eq("organization_id", orgId)
+      .in("path_id", pathIds);
+
+    if (modulesError) {
+      throw new Error(`Failed to load progress modules: ${modulesError.message}`);
+    }
+
+    const moduleRows = (modules ?? []) as { id: string; path_id: string }[];
+    const modulePathByModule = new Map(
+      moduleRows.map((module) => [module.id, module.path_id])
+    );
+    const moduleIds = moduleRows.map((module) => module.id);
+
+    if (moduleIds.length > 0) {
+      const { data: lessons, error: lessonsError } = await supabase
+        .from("onboarding_lessons")
+        .select("id, module_id")
+        .eq("organization_id", orgId)
+        .in("module_id", moduleIds);
+
+      if (lessonsError) {
+        throw new Error(`Failed to load progress lessons: ${lessonsError.message}`);
+      }
+
+      ((lessons ?? []) as { id: string; module_id: string }[]).forEach(
+        (lesson) => {
+          const pathId = modulePathByModule.get(lesson.module_id);
+          if (!pathId) {
+            return;
+          }
+
+          totalLessonsByPath.set(pathId, (totalLessonsByPath.get(pathId) ?? 0) + 1);
+        }
+      );
+    }
+  }
+
+  if (assignmentIds.length > 0) {
+    const { data: completions, error: completionsError } = await supabase
+      .from("lesson_completions")
+      .select("assignment_id")
+      .eq("organization_id", orgId)
+      .in("assignment_id", assignmentIds);
+
+    if (completionsError) {
+      throw new Error(
+        `Failed to load progress completions: ${completionsError.message}`
+      );
+    }
+
+    ((completions ?? []) as { assignment_id: string }[]).forEach(
+      (completion) => {
+        completedLessonsByAssignment.set(
+          completion.assignment_id,
+          (completedLessonsByAssignment.get(completion.assignment_id) ?? 0) + 1
+        );
+      }
+    );
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const rows = assignmentRows.map((assignment) => {
+    const profile = normalizeProfile(assignment.profiles);
+    const path = normalizeProgressPath(assignment.onboarding_paths);
+    const totalLessons = totalLessonsByPath.get(assignment.path_id) ?? 0;
+    const completedLessons = completedLessonsByAssignment.get(assignment.id) ?? 0;
+    const progressPercent =
+      totalLessons === 0
+        ? assignment.status === "completed"
+          ? 100
+          : 0
+        : Math.round((completedLessons / totalLessons) * 100);
+    const dueDate = assignment.due_date ? new Date(assignment.due_date) : null;
+    const overdue =
+      Boolean(dueDate) &&
+      dueDate! < today &&
+      assignment.status !== "completed" &&
+      assignment.status !== "cancelled";
+
+    return {
+      assignmentId: assignment.id,
+      pathId: assignment.path_id,
+      pathTitle: path?.title ?? "Untitled path",
+      userId: assignment.user_id,
+      userEmail: profile?.email ?? "No email",
+      userName: profile?.full_name ?? null,
+      assignmentStatus: assignment.status,
+      dueDate: assignment.due_date,
+      assignedAt: assignment.assigned_at,
+      totalLessons,
+      completedLessons,
+      progressPercent,
+      overdue,
+    } satisfies OnboardingProgressRow;
+  });
+
+  const totalAssignments = rows.length;
+  const completedAssignments = rows.filter(
+    (row) => row.assignmentStatus === "completed"
+  ).length;
+  const inProgressAssignments = rows.filter(
+    (row) => row.assignmentStatus === "in_progress"
+  ).length;
+  const overdueAssignments = rows.filter((row) => row.overdue).length;
+  const averageProgress =
+    totalAssignments === 0
+      ? 0
+      : Math.round(
+          rows.reduce((sum, row) => sum + row.progressPercent, 0) /
+            totalAssignments
+        );
+
+  return {
+    totalAssignments,
+    completedAssignments,
+    inProgressAssignments,
+    overdueAssignments,
+    averageProgress,
+    rows,
+  };
 }

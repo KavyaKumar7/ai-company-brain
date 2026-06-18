@@ -1,13 +1,18 @@
 import Link from "next/link";
 
 import { buttonVariants } from "@/components/ui/button";
+import type { AppRole } from "@/lib/auth/types";
 
 type AdminHeaderProps = {
   title: string;
   description: string;
+  role: AppRole;
 };
 
-export function AdminHeader({ title, description }: AdminHeaderProps) {
+export function AdminHeader({ title, description, role }: AdminHeaderProps) {
+  const canAdmin = role === "admin";
+  const canManageLearning = role === "admin" || role === "manager";
+
   return (
     <header className="flex flex-col justify-between gap-4 rounded-lg border bg-background px-5 py-4 sm:flex-row sm:items-center">
       <div>
@@ -24,27 +29,43 @@ export function AdminHeader({ title, description }: AdminHeaderProps) {
         >
           Dashboard
         </Link>
-        <Link
-          className={buttonVariants({ variant: "outline" })}
-          href="/admin/settings"
-        >
-          Settings
-        </Link>
-        <Link
-          className={buttonVariants({ variant: "outline" })}
-          href="/admin/departments"
-        >
-          Departments
-        </Link>
-        <Link
-          className={buttonVariants({ variant: "outline" })}
-          href="/admin/onboarding"
-        >
-          Onboarding
-        </Link>
-        <Link className={buttonVariants()} href="/admin/members">
-          Members
-        </Link>
+        {canAdmin ? (
+          <>
+            <Link
+              className={buttonVariants({ variant: "outline" })}
+              href="/admin/settings"
+            >
+              Settings
+            </Link>
+            <Link
+              className={buttonVariants({ variant: "outline" })}
+              href="/admin/departments"
+            >
+              Departments
+            </Link>
+          </>
+        ) : null}
+        {canManageLearning ? (
+          <>
+            <Link
+              className={buttonVariants({ variant: "outline" })}
+              href="/admin/onboarding"
+            >
+              Onboarding
+            </Link>
+            <Link
+              className={buttonVariants({ variant: "outline" })}
+              href="/admin/progress"
+            >
+              Progress
+            </Link>
+          </>
+        ) : null}
+        {canAdmin ? (
+          <Link className={buttonVariants()} href="/admin/members">
+            Members
+          </Link>
+        ) : null}
       </div>
     </header>
   );
