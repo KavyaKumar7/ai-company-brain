@@ -35,6 +35,18 @@ export type KnowledgeDocument = {
   updatedAt: string;
 };
 
+export type DocumentChunk = {
+  id: string;
+  organizationId: string;
+  documentId: string;
+  chunkIndex: number;
+  content: string;
+  page: number | null;
+  section: string | null;
+  tokenCount: number;
+  createdAt: string;
+};
+
 type DocumentRow = {
   id: string;
   organization_id: string;
@@ -63,6 +75,18 @@ type DocumentRow = {
         name: string;
       }[]
     | null;
+};
+
+type DocumentChunkRow = {
+  id: string;
+  organization_id: string;
+  document_id: string;
+  chunk_index: number;
+  content: string;
+  page: number | null;
+  section: string | null;
+  token_count: number;
+  created_at: string;
 };
 
 function normalizeDepartment(row: DocumentRow["departments"]) {
@@ -100,6 +124,20 @@ function mapDocument(row: DocumentRow): KnowledgeDocument {
   };
 }
 
+function mapChunk(row: DocumentChunkRow): DocumentChunk {
+  return {
+    id: row.id,
+    organizationId: row.organization_id,
+    documentId: row.document_id,
+    chunkIndex: row.chunk_index,
+    content: row.content,
+    page: row.page,
+    section: row.section,
+    tokenCount: row.token_count,
+    createdAt: row.created_at,
+  };
+}
+
 function documentSelect() {
   return `
     id,
@@ -130,6 +168,15 @@ function documentSelect() {
 function isMissingDocumentsTable(message: string) {
   return (
     message.includes("documents") &&
+    (message.includes("schema cache") ||
+      message.includes("does not exist") ||
+      message.includes("Could not find the table"))
+  );
+}
+
+function isMissingChunksTable(message: string) {
+  return (
+    message.includes("document_chunks") &&
     (message.includes("schema cache") ||
       message.includes("does not exist") ||
       message.includes("Could not find the table"))
@@ -177,6 +224,26 @@ export async function getDocumentById({
   }
 
   return mapDocument(data as unknown as DocumentRow);
+}
+
+export async function createDocumentSignedUrl({
+  filePath,
+  expiresIn = 600,
+}: {
+  filePath: string;
+  expiresIn?: number;
+}) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.storage
+    .from("company-documents")
+    .createSignedUrl(filePath, expiresIn);
+
+  if (error) {
+    return null;
+  }
+
+  return data.signedUrl;
 }
 
 export async function createDocument({
@@ -293,4 +360,130 @@ export async function updateDocumentStatus({
   }
 
   return mapDocument(data as unknown as DocumentRow);
+}
+
+export async function updateDocumentProcessingState({
+  orgId,
+  documentId,
+  status,
+  processingError = null,
+  summary,
+}: {
+  orgId: string;
+  documentId: string;
+  status: DocumentStatus;
+  processingError?: string | null;
+  summary?: string | null;
+}) {
+  const supabase = await createClient();
+  const updatePayload: {
+    status: DocumentStatus;
+    processing_error: string | null;
+    summary?: string | null;
+  } = {
+    status,
+    processing_error: processingError,
+  };
+
+  if (summary !== undefined) {
+    updatePayload.summary = summary;
+  }
+
+  const { data, error } = await supabase
+    .from("documents")
+    .update(updatePayload)
+    .eq("organization_id", orgId)
+    .eq("id", documentId)
+    .select(documentSelect())
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to update document processing state: ${error.message}`);
+  }
+
+  return mapDocument(data as unknown as DocumentRow);
+}
+
+export async function listDocumentChunks({
+  orgId,
+  documentId,
+}: {
+  orgId: string;
+  documentId: string;
+}) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("document_chunks")
+    .select(
+      "id, organization_id, document_id, chunk_index, content, page, section, token_count, created_at"
+    )
+    .eq("organization_id", orgId)
+    .eq("document_id", documentId)
+    .order("chunk_index", { ascending: true });
+
+  if (error) {
+    if (isMissingChunksTable(error.message)) {
+      return [];
+    }
+
+    throw new Error(`Failed to load document chunks: ${error.message}`);
+  }
+
+  return ((data ?? []) as unknown as DocumentChunkRow[]).map(mapChunk);
+}
+
+export async function replaceDocumentChunks({
+  orgId,
+  documentId,
+  chunks,
+}: {
+  orgId: string;
+  documentId: string;
+  chunks: Array<{
+    chunkIndex: number;
+    content: string;
+    page?: number | null;
+    section?: string | null;
+    tokenCount: number;
+  }>;
+}) {
+  const supabase = await createClient();
+
+  const { error: deleteError } = await supabase
+    .from("document_chunks")
+    .delete()
+    .eq("organization_id", orgId)
+    .eq("document_id", documentId);
+
+  if (deleteError && !isMissingChunksTable(deleteError.message)) {
+    throw new Error(`Failed to clear document chunks: ${deleteError.message}`);
+  }
+
+  if (chunks.length === 0) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from("document_chunks")
+    .insert(
+      chunks.map((chunk) => ({
+        organization_id: orgId,
+        document_id: documentId,
+        chunk_index: chunk.chunkIndex,
+        content: chunk.content,
+        page: chunk.page ?? null,
+        section: chunk.section ?? null,
+        token_count: chunk.tokenCount,
+      }))
+    )
+    .select(
+      "id, organization_id, document_id, chunk_index, content, page, section, token_count, created_at"
+    );
+
+  if (error) {
+    throw new Error(`Failed to insert document chunks: ${error.message}`);
+  }
+
+  return ((data ?? []) as unknown as DocumentChunkRow[]).map(mapChunk);
 }

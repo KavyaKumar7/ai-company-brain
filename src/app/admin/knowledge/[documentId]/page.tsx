@@ -16,9 +16,14 @@ import { Label } from "@/components/ui/label";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { requireRole } from "@/lib/auth/require-role";
 import { listDepartments } from "@/lib/data-access/departments";
-import { getDocumentById } from "@/lib/data-access/documents";
+import {
+  createDocumentSignedUrl,
+  getDocumentById,
+  listDocumentChunks,
+} from "@/lib/data-access/documents";
 
 import {
+  processTextDocumentAction,
   updateDocumentMetadataAction,
   updateDocumentStatusAction,
 } from "../actions";
@@ -58,6 +63,10 @@ export default async function AdminKnowledgeDocumentPage({
     getDocumentById({ orgId: context.orgId, documentId }),
     listDepartments(context.orgId),
   ]);
+  const [chunks, signedUrl] = await Promise.all([
+    listDocumentChunks({ orgId: context.orgId, documentId }),
+    createDocumentSignedUrl({ filePath: document.filePath }),
+  ]);
 
   return (
     <AppShell context={context}>
@@ -82,6 +91,7 @@ export default async function AdminKnowledgeDocumentPage({
             <div className="mb-4 flex flex-col gap-2 text-sm text-muted-foreground">
               <StatusBadge status={document.status} />
               <p>File: {document.fileName}</p>
+              <p>Chunks: {chunks.length}</p>
               <p>Effective date: {formatDate(document.effectiveDate)}</p>
               <p>Review date: {formatDate(document.reviewDate)}</p>
             </div>
@@ -109,6 +119,51 @@ export default async function AdminKnowledgeDocumentPage({
               >
                 Back to knowledge
               </Link>
+              {signedUrl ? (
+                <a
+                  className={buttonVariants({ variant: "outline" })}
+                  href={signedUrl}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  Download file
+                </a>
+              ) : null}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Processing</CardTitle>
+            <CardDescription>
+              TXT extraction is available now. PDF, DOCX, and PPTX extraction
+              will move into the background job pipeline.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {document.processingError ? (
+              <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                {document.processingError}
+              </div>
+            ) : null}
+            <div className="flex flex-wrap gap-2">
+              <form action={processTextDocumentAction}>
+                <input name="documentId" type="hidden" value={document.id} />
+                <Button
+                  disabled={document.fileType !== "text/plain"}
+                  type="submit"
+                  variant="outline"
+                >
+                  Extract TXT chunks
+                </Button>
+              </form>
+              {document.fileType !== "text/plain" ? (
+                <p className="self-center text-sm text-muted-foreground">
+                  Automated extraction for this file type comes next with
+                  Inngest.
+                </p>
+              ) : null}
             </div>
           </CardContent>
         </Card>
@@ -205,6 +260,46 @@ export default async function AdminKnowledgeDocumentPage({
               </div>
               <Button type="submit">Save metadata</Button>
             </form>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Extracted chunks</CardTitle>
+            <CardDescription>
+              These chunks are the future retrieval units for cited AI answers.
+              Embeddings are added in the next AI pipeline step.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {chunks.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No chunks extracted yet.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {chunks.map((chunk) => (
+                  <div className="rounded-lg border bg-muted/40 p-4" key={chunk.id}>
+                    <div className="mb-2 flex flex-col justify-between gap-1 sm:flex-row">
+                      <p className="text-sm font-medium">
+                        Chunk {chunk.chunkIndex + 1}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        ~{chunk.tokenCount} tokens
+                      </p>
+                    </div>
+                    {chunk.section ? (
+                      <p className="mb-2 text-xs text-muted-foreground">
+                        Section: {chunk.section}
+                      </p>
+                    ) : null}
+                    <p className="line-clamp-4 whitespace-pre-wrap text-sm text-muted-foreground">
+                      {chunk.content}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

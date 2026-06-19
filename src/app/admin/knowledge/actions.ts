@@ -7,7 +7,10 @@ import { requireRole } from "@/lib/auth/require-role";
 import { createActivityLog } from "@/lib/data-access/activity-log";
 import {
   createDocument,
+  getDocumentById,
+  replaceDocumentChunks,
   updateDocumentMetadata,
+  updateDocumentProcessingState,
   updateDocumentStatus,
   type DocumentConfidentiality,
   type DocumentStatus,
@@ -51,6 +54,48 @@ function redirectWithParam(path: string, key: "error" | "message", value: string
 
 function sanitizeFileName(fileName: string) {
   return fileName.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/-+/g, "-");
+}
+
+function estimateTokenCount(text: string) {
+  return Math.max(1, Math.ceil(text.trim().split(/\s+/).filter(Boolean).length * 1.3));
+}
+
+function chunkText(text: string) {
+  const normalized = text.replace(/\r\n/g, "\n").trim();
+  const chunkSize = 3000;
+  const overlap = 350;
+  const chunks: Array<{
+    chunkIndex: number;
+    content: string;
+    section: string | null;
+    tokenCount: number;
+  }> = [];
+  let cursor = 0;
+
+  while (cursor < normalized.length) {
+    const end = Math.min(cursor + chunkSize, normalized.length);
+    const nextBreak = normalized.lastIndexOf("\n\n", end);
+    const sliceEnd = nextBreak > cursor + 1000 ? nextBreak : end;
+    const content = normalized.slice(cursor, sliceEnd).trim();
+
+    if (content) {
+      const firstLine = content.split("\n").find(Boolean) ?? null;
+      chunks.push({
+        chunkIndex: chunks.length,
+        content,
+        section: firstLine ? firstLine.slice(0, 120) : null,
+        tokenCount: estimateTokenCount(content),
+      });
+    }
+
+    if (sliceEnd >= normalized.length) {
+      break;
+    }
+
+    cursor = Math.max(0, sliceEnd - overlap);
+  }
+
+  return chunks;
 }
 
 export async function uploadDocumentAction(formData: FormData) {
@@ -206,4 +251,109 @@ export async function updateDocumentStatusAction(formData: FormData) {
   revalidatePath("/admin/knowledge");
   revalidatePath("/dashboard");
   redirectWithParam(pagePath, "message", "Document status updated.");
+}
+
+export async function processTextDocumentAction(formData: FormData) {
+  const context = await requireRole("manager");
+  const documentId = getString(formData, "documentId");
+  const pagePath = `/admin/knowledge/${documentId}`;
+
+  if (!documentId) {
+    redirectWithParam("/admin/knowledge", "error", "Document is required.");
+  }
+
+  const document = await getDocumentById({
+    orgId: context.orgId,
+    documentId,
+  });
+
+  if (document.fileType !== "text/plain") {
+    redirectWithParam(
+      pagePath,
+      "error",
+      "Automatic extraction is currently enabled for TXT files only. PDF/DOCX/PPTX extraction comes with the Inngest processing step."
+    );
+  }
+
+  await updateDocumentProcessingState({
+    orgId: context.orgId,
+    documentId,
+    status: "processing",
+    processingError: null,
+  });
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.storage
+    .from("company-documents")
+    .download(document.filePath);
+
+  if (error || !data) {
+    await updateDocumentProcessingState({
+      orgId: context.orgId,
+      documentId,
+      status: "failed",
+      processingError: error?.message ?? "Could not download document.",
+    });
+    redirectWithParam(pagePath, "error", "Could not download document for processing.");
+  }
+
+  const text = await data.text();
+  const chunks = chunkText(text);
+
+  if (chunks.length === 0) {
+    await updateDocumentProcessingState({
+      orgId: context.orgId,
+      documentId,
+      status: "failed",
+      processingError: "No extractable text was found in this document.",
+    });
+    redirectWithParam(pagePath, "error", "No extractable text was found.");
+  }
+
+  try {
+    await replaceDocumentChunks({
+      orgId: context.orgId,
+      documentId,
+      chunks,
+    });
+  } catch (error) {
+    await updateDocumentProcessingState({
+      orgId: context.orgId,
+      documentId,
+      status: "failed",
+      processingError:
+        error instanceof Error
+          ? error.message
+          : "Could not save document chunks.",
+    });
+    redirectWithParam(
+      pagePath,
+      "error",
+      "Could not save document chunks. Make sure migration 010 has been run in Supabase."
+    );
+  }
+
+  await updateDocumentProcessingState({
+    orgId: context.orgId,
+    documentId,
+    status: "ready_for_review",
+    processingError: null,
+    summary:
+      document.summary ||
+      `Extracted ${chunks.length} text chunks from ${document.fileName}.`,
+  });
+
+  await createActivityLog({
+    orgId: context.orgId,
+    userId: context.userId,
+    action: "document.processed",
+    targetType: "document",
+    targetId: documentId,
+    metadata: { chunkCount: chunks.length, fileType: document.fileType },
+  });
+
+  revalidatePath(pagePath);
+  revalidatePath("/admin/knowledge");
+  revalidatePath("/dashboard");
+  redirectWithParam(pagePath, "message", `Processed ${chunks.length} text chunks.`);
 }
