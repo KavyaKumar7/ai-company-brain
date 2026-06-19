@@ -44,6 +44,15 @@ function normalizeProfile(row: ActivityLogRow["profiles"]) {
   return row;
 }
 
+function isMissingActivityLogTable(message: string) {
+  return (
+    message.includes("activity_log") &&
+    (message.includes("schema cache") ||
+      message.includes("does not exist") ||
+      message.includes("Could not find the table"))
+  );
+}
+
 export async function createActivityLog({
   orgId,
   userId,
@@ -71,6 +80,10 @@ export async function createActivityLog({
   });
 
   if (error) {
+    if (isMissingActivityLogTable(error.message)) {
+      return;
+    }
+
     throw new Error(`Failed to create activity log: ${error.message}`);
   }
 }
@@ -106,6 +119,10 @@ export async function listRecentActivityLogs({
     .limit(limit);
 
   if (error) {
+    if (isMissingActivityLogTable(error.message)) {
+      return [];
+    }
+
     throw new Error(`Failed to load activity logs: ${error.message}`);
   }
 
