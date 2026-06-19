@@ -36,7 +36,7 @@ export function DashboardShell({ context, summary }: DashboardShellProps) {
           description="Your secure workforce enablement workspace is active. Track the setup work that matters for a pilot-ready onboarding demo."
         />
 
-        <section className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
+        <section className="grid gap-4 md:grid-cols-4 xl:grid-cols-8">
           <MetricCard
             label="Members"
             value={summary.activeMembers}
@@ -56,6 +56,16 @@ export function DashboardShell({ context, summary }: DashboardShellProps) {
             label="Published"
             value={summary.publishedPaths}
             helper="Ready to assign"
+          />
+          <MetricCard
+            label="Docs"
+            value={summary.documents}
+            helper="Knowledge files"
+          />
+          <MetricCard
+            label="Approved docs"
+            value={summary.approvedDocuments}
+            helper="Future RAG"
           />
           <MetricCard
             label={managerView ? "Active work" : "My active work"}

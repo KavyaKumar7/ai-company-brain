@@ -4,6 +4,7 @@ import {
   BarChart3,
   BookOpenCheck,
   Building2,
+  FileText,
   GraduationCap,
   LayoutDashboard,
   LogOut,
@@ -40,6 +41,12 @@ const navItems: NavItem[] = [
     label: "My learning",
     icon: GraduationCap,
     roles: ["admin", "manager", "employee"],
+  },
+  {
+    href: "/admin/knowledge",
+    label: "Knowledge",
+    icon: FileText,
+    roles: ["admin", "manager"],
   },
   {
     href: "/admin/onboarding",

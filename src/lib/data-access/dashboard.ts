@@ -5,6 +5,7 @@ import {
   listRecentActivityLogs,
   type ActivityLogEntry,
 } from "@/lib/data-access/activity-log";
+import { listDocuments } from "@/lib/data-access/documents";
 import { createClient } from "@/lib/supabase/server";
 
 export type DashboardSummary = {
@@ -12,6 +13,8 @@ export type DashboardSummary = {
   departments: number;
   onboardingPaths: number;
   publishedPaths: number;
+  documents: number;
+  approvedDocuments: number;
   activeAssignments: number;
   completedAssignments: number;
   overdueAssignments: number;
@@ -53,6 +56,18 @@ function buildNextSteps({
 
   if ((role === "admin" || role === "manager") && summary.onboardingPaths === 0) {
     steps.push("Create your first manual onboarding path.");
+  }
+
+  if ((role === "admin" || role === "manager") && summary.documents === 0) {
+    steps.push("Upload your first company knowledge document.");
+  }
+
+  if (
+    (role === "admin" || role === "manager") &&
+    summary.documents > 0 &&
+    summary.approvedDocuments === 0
+  ) {
+    steps.push("Approve a reviewed document for future AI retrieval.");
   }
 
   if (
@@ -103,6 +118,7 @@ export async function getDashboardSummary({
     pathsResult,
     assignmentsResult,
     recentActivity,
+    documents,
   ] = await Promise.all([
     supabase
       .from("memberships")
@@ -128,6 +144,7 @@ export async function getDashboardSummary({
           .select("status, due_date")
           .eq("organization_id", orgId),
     listRecentActivityLogs({ orgId, limit: 6 }),
+    listDocuments(orgId),
   ]);
 
   if (membersResult.error) {
@@ -178,6 +195,9 @@ export async function getDashboardSummary({
     departments: departmentsResult.count ?? 0,
     onboardingPaths: paths.length,
     publishedPaths: paths.filter((path) => path.status === "published").length,
+    documents: documents.length,
+    approvedDocuments: documents.filter((document) => document.status === "approved")
+      .length,
     activeAssignments,
     completedAssignments,
     overdueAssignments,
