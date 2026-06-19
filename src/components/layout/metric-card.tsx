@@ -14,13 +14,15 @@ type MetricCardProps = {
 
 export function MetricCard({ label, value, helper }: MetricCardProps) {
   return (
-    <Card className="shadow-sm">
+    <Card className="bg-card/80 shadow-xl shadow-black/10 backdrop-blur">
       <CardHeader>
         <CardTitle>{label}</CardTitle>
         {helper ? <CardDescription>{helper}</CardDescription> : null}
       </CardHeader>
       <CardContent>
-        <p className="text-3xl font-semibold tracking-tight">{value}</p>
+        <p className="text-3xl font-semibold tracking-tight text-primary">
+          {value}
+        </p>
       </CardContent>
     </Card>
   );

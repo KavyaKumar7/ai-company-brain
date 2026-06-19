@@ -23,7 +23,7 @@ export default async function AcceptInvitePage({ params }: AcceptInvitePageProps
   const next = `/accept-invite/${token}`;
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-muted/30 px-6 py-12">
+    <main className="flex min-h-screen items-center justify-center px-6 py-12">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Accept organization invite</CardTitle>

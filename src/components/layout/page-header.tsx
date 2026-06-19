@@ -12,10 +12,10 @@ export function PageHeader({
   actions,
 }: PageHeaderProps) {
   return (
-    <header className="flex flex-col gap-4 rounded-xl border bg-background p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+    <header className="flex flex-col gap-4 rounded-xl border bg-card/80 p-5 shadow-xl shadow-black/10 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
       <div>
         {eyebrow ? (
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+          <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary">
             {eyebrow}
           </p>
         ) : null}

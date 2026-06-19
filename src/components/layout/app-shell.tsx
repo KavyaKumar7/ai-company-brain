@@ -90,8 +90,8 @@ function Navigation({
         return (
           <Link
             className={cn(
-              "inline-flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
-              compact && "shrink-0 border bg-background"
+              "inline-flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+              compact && "shrink-0 border bg-card/80"
             )}
             href={item.href}
             key={item.href}
@@ -107,17 +107,20 @@ function Navigation({
 
 export function AppShell({ children, context }: AppShellProps) {
   return (
-    <div className="min-h-screen bg-muted/30">
-      <aside className="fixed inset-y-0 left-0 hidden w-72 border-r bg-background/95 p-5 lg:block">
+    <div className="min-h-screen bg-transparent">
+      <aside className="fixed inset-y-0 left-0 hidden w-72 border-r border-sidebar-border bg-sidebar/90 p-5 shadow-2xl shadow-black/20 backdrop-blur-xl lg:block">
         <div className="flex h-full flex-col">
-          <div className="rounded-xl border bg-muted/40 p-4">
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-              AI Company Brain
+          <div className="rounded-xl border border-sidebar-border bg-sidebar-accent/70 p-4">
+            <div className="mb-3 flex size-10 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
+              AI
+            </div>
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-sidebar-foreground/60">
+              Company Brain
             </p>
             <h2 className="mt-2 line-clamp-2 text-lg font-semibold">
               {context.organizationName}
             </h2>
-            <p className="mt-1 text-sm capitalize text-muted-foreground">
+            <p className="mt-1 text-sm capitalize text-sidebar-foreground/65">
               {context.role}
             </p>
           </div>
@@ -136,7 +139,7 @@ export function AppShell({ children, context }: AppShellProps) {
       </aside>
 
       <div className="lg:pl-72">
-        <header className="sticky top-0 z-20 border-b bg-background/95 px-4 py-3 backdrop-blur lg:hidden">
+        <header className="sticky top-0 z-20 border-b border-border bg-background/85 px-4 py-3 backdrop-blur-xl lg:hidden">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
               <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
