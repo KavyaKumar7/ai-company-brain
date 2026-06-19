@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireRole } from "@/lib/auth/require-role";
+import { createActivityLog } from "@/lib/data-access/activity-log";
 import { updateOrganizationName } from "@/lib/data-access/organizations";
 
 function getString(formData: FormData, key: string) {
@@ -24,6 +25,15 @@ export async function updateOrganizationSettings(formData: FormData) {
   }
 
   await updateOrganizationName(context.orgId, name);
+
+  await createActivityLog({
+    orgId: context.orgId,
+    userId: context.userId,
+    action: "organization.updated",
+    targetType: "organization",
+    targetId: context.orgId,
+    metadata: { name },
+  });
 
   revalidatePath("/admin/settings");
   revalidatePath("/dashboard");

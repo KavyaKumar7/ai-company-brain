@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { requireRole } from "@/lib/auth/require-role";
 import type { AppRole } from "@/lib/auth/types";
+import { createActivityLog } from "@/lib/data-access/activity-log";
 import { createOrganizationInvite } from "@/lib/data-access/invites";
 import { updateOrganizationMember } from "@/lib/data-access/memberships";
 
@@ -33,11 +34,20 @@ export async function createInvite(formData: FormData) {
     redirectWithParam("error", "Choose a valid role.");
   }
 
-  await createOrganizationInvite({
+  const invite = await createOrganizationInvite({
     orgId: context.orgId,
     email,
     role,
     createdBy: context.userId,
+  });
+
+  await createActivityLog({
+    orgId: context.orgId,
+    userId: context.userId,
+    action: "invite.created",
+    targetType: "organization_invite",
+    targetId: invite.id,
+    metadata: { email, role },
   });
 
   revalidatePath("/admin/members");
@@ -70,6 +80,15 @@ export async function updateMember(formData: FormData) {
       role,
       status,
       departmentId,
+    });
+
+    await createActivityLog({
+      orgId: context.orgId,
+      userId: context.userId,
+      action: "member.updated",
+      targetType: "membership",
+      targetId: membershipId,
+      metadata: { role, status, departmentId },
     });
   } catch (error) {
     const message =

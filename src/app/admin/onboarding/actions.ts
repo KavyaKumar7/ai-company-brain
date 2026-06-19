@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { requireRole } from "@/lib/auth/require-role";
 import type { AppRole } from "@/lib/auth/types";
+import { createActivityLog } from "@/lib/data-access/activity-log";
 import {
   createOnboardingAssignment,
   createOnboardingLesson,
@@ -61,6 +62,15 @@ export async function createPathAction(formData: FormData) {
     createdBy: context.userId,
   });
 
+  await createActivityLog({
+    orgId: context.orgId,
+    userId: context.userId,
+    action: "onboarding_path.created",
+    targetType: "onboarding_path",
+    targetId: path.id,
+    metadata: { title, targetRole, departmentId },
+  });
+
   revalidatePath("/admin/onboarding");
   redirect(`/admin/onboarding/${path.id}?message=${encodeURIComponent("Path created.")}`);
 }
@@ -78,13 +88,22 @@ export async function createModuleAction(formData: FormData) {
     redirectWithParam(pagePath, "error", "Module title is required.");
   }
 
-  await createOnboardingModule({
+  const onboardingModule = await createOnboardingModule({
     orgId: context.orgId,
     pathId,
     title,
     description,
     orderIndex,
     estimatedMinutes,
+  });
+
+  await createActivityLog({
+    orgId: context.orgId,
+    userId: context.userId,
+    action: "onboarding_module.created",
+    targetType: "onboarding_module",
+    targetId: onboardingModule.id,
+    metadata: { pathId, title, orderIndex, estimatedMinutes },
   });
 
   revalidatePath(pagePath);
@@ -105,13 +124,22 @@ export async function createLessonAction(formData: FormData) {
     redirectWithParam(pagePath, "error", "Lesson title is required.");
   }
 
-  await createOnboardingLesson({
+  const lesson = await createOnboardingLesson({
     orgId: context.orgId,
     moduleId,
     title,
     content,
     orderIndex,
     estimatedMinutes,
+  });
+
+  await createActivityLog({
+    orgId: context.orgId,
+    userId: context.userId,
+    action: "onboarding_lesson.created",
+    targetType: "onboarding_lesson",
+    targetId: lesson.id,
+    metadata: { pathId, moduleId, title, orderIndex, estimatedMinutes },
   });
 
   revalidatePath(pagePath);
@@ -134,6 +162,15 @@ export async function updatePathStatusAction(formData: FormData) {
     status,
   });
 
+  await createActivityLog({
+    orgId: context.orgId,
+    userId: context.userId,
+    action: "onboarding_path.status_updated",
+    targetType: "onboarding_path",
+    targetId: pathId,
+    metadata: { status },
+  });
+
   revalidatePath(pagePath);
   revalidatePath("/admin/onboarding");
   redirectWithParam(pagePath, "message", "Path status updated.");
@@ -151,12 +188,21 @@ export async function assignPathAction(formData: FormData) {
   }
 
   try {
-    await createOnboardingAssignment({
+    const assignment = await createOnboardingAssignment({
       orgId: context.orgId,
       pathId,
       userId,
       assignedBy: context.userId,
       dueDate,
+    });
+
+    await createActivityLog({
+      orgId: context.orgId,
+      userId: context.userId,
+      action: "onboarding_assignment.created",
+      targetType: "onboarding_assignment",
+      targetId: assignment.id,
+      metadata: { pathId, assignedUserId: userId, dueDate },
     });
   } catch (error) {
     const message =
@@ -187,6 +233,15 @@ export async function updateAssignmentStatusAction(formData: FormData) {
     orgId: context.orgId,
     assignmentId,
     status,
+  });
+
+  await createActivityLog({
+    orgId: context.orgId,
+    userId: context.userId,
+    action: "onboarding_assignment.status_updated",
+    targetType: "onboarding_assignment",
+    targetId: assignmentId,
+    metadata: { pathId, status },
   });
 
   revalidatePath(pagePath);

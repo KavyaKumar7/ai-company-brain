@@ -16,6 +16,14 @@ type DashboardShellProps = {
   summary: DashboardSummary;
 };
 
+function formatAction(action: string) {
+  return action.replaceAll("_", " ").replaceAll(".", " ");
+}
+
+function formatDateTime(value: string) {
+  return new Date(value).toLocaleString();
+}
+
 export function DashboardShell({ context, summary }: DashboardShellProps) {
   const managerView = context.role === "admin" || context.role === "manager";
 
@@ -112,32 +120,78 @@ export function DashboardShell({ context, summary }: DashboardShellProps) {
           </Card>
         </section>
 
-        <Card className="bg-card/80 shadow-xl shadow-black/10 backdrop-blur">
-          <CardHeader>
-            <CardTitle>Signed-in context</CardTitle>
-            <CardDescription>
-              This is loaded from the server-side session and membership.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <dl className="grid gap-4 text-sm md:grid-cols-3">
-              <div className="rounded-lg border bg-muted/40 p-3">
-                <dt className="text-muted-foreground">Organization</dt>
-                <dd className="mt-1 font-medium">{context.organizationName}</dd>
-              </div>
-              <div className="rounded-lg border bg-muted/40 p-3">
-                <dt className="text-muted-foreground">Role</dt>
-                <dd className="mt-1 font-medium capitalize">{context.role}</dd>
-              </div>
-              <div className="rounded-lg border bg-muted/40 p-3">
-                <dt className="text-muted-foreground">User</dt>
-                <dd className="mt-1 font-medium">
-                  {context.fullName || context.email}
-                </dd>
-              </div>
-            </dl>
-          </CardContent>
-        </Card>
+        <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+          <Card className="bg-card/80 shadow-xl shadow-black/10 backdrop-blur">
+            <CardHeader>
+              <CardTitle>Recent activity</CardTitle>
+              <CardDescription>
+                Early audit trail for workspace and onboarding changes.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {summary.recentActivity.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No activity has been recorded yet.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {summary.recentActivity.map((entry) => (
+                    <div
+                      className="rounded-lg border bg-muted/40 p-3 text-sm"
+                      key={entry.id}
+                    >
+                      <div className="flex flex-col justify-between gap-1 sm:flex-row">
+                        <p className="font-medium capitalize">
+                          {formatAction(entry.action)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatDateTime(entry.createdAt)}
+                        </p>
+                      </div>
+                      <p className="mt-1 text-muted-foreground">
+                        {entry.profile?.fullName ||
+                          entry.profile?.email ||
+                          "Unknown user"}{" "}
+                        updated {entry.targetType.replaceAll("_", " ")}.
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="bg-card/80 shadow-xl shadow-black/10 backdrop-blur">
+            <CardHeader>
+              <CardTitle>Signed-in context</CardTitle>
+              <CardDescription>
+                Loaded from the server-side session and membership.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <dl className="grid gap-4 text-sm">
+                <div className="rounded-lg border bg-muted/40 p-3">
+                  <dt className="text-muted-foreground">Organization</dt>
+                  <dd className="mt-1 font-medium">
+                    {context.organizationName}
+                  </dd>
+                </div>
+                <div className="rounded-lg border bg-muted/40 p-3">
+                  <dt className="text-muted-foreground">Role</dt>
+                  <dd className="mt-1 font-medium capitalize">
+                    {context.role}
+                  </dd>
+                </div>
+                <div className="rounded-lg border bg-muted/40 p-3">
+                  <dt className="text-muted-foreground">User</dt>
+                  <dd className="mt-1 font-medium">
+                    {context.fullName || context.email}
+                  </dd>
+                </div>
+              </dl>
+            </CardContent>
+          </Card>
+        </section>
       </div>
     </AppShell>
   );

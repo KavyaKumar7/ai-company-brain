@@ -1,6 +1,10 @@
 import "server-only";
 
 import type { AppRole } from "@/lib/auth/types";
+import {
+  listRecentActivityLogs,
+  type ActivityLogEntry,
+} from "@/lib/data-access/activity-log";
 import { createClient } from "@/lib/supabase/server";
 
 export type DashboardSummary = {
@@ -12,6 +16,7 @@ export type DashboardSummary = {
   completedAssignments: number;
   overdueAssignments: number;
   nextSteps: string[];
+  recentActivity: ActivityLogEntry[];
 };
 
 type AssignmentSummaryRow = {
@@ -34,7 +39,7 @@ function buildNextSteps({
   summary,
 }: {
   role: AppRole;
-  summary: Omit<DashboardSummary, "nextSteps">;
+  summary: Omit<DashboardSummary, "nextSteps" | "recentActivity">;
 }) {
   const steps: string[] = [];
 
@@ -97,6 +102,7 @@ export async function getDashboardSummary({
     departmentsResult,
     pathsResult,
     assignmentsResult,
+    recentActivity,
   ] = await Promise.all([
     supabase
       .from("memberships")
@@ -121,6 +127,7 @@ export async function getDashboardSummary({
           .from("onboarding_assignments")
           .select("status, due_date")
           .eq("organization_id", orgId),
+    listRecentActivityLogs({ orgId, limit: 6 }),
   ]);
 
   if (membersResult.error) {
@@ -179,5 +186,6 @@ export async function getDashboardSummary({
   return {
     ...summary,
     nextSteps: buildNextSteps({ role, summary }),
+    recentActivity,
   };
 }

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireRole } from "@/lib/auth/require-role";
+import { createActivityLog } from "@/lib/data-access/activity-log";
 import { createDepartment, updateDepartment } from "@/lib/data-access/departments";
 
 function getString(formData: FormData, key: string) {
@@ -24,10 +25,19 @@ export async function createDepartmentAction(formData: FormData) {
     redirectWithParam("error", "Department name is required.");
   }
 
-  await createDepartment({
+  const department = await createDepartment({
     orgId: context.orgId,
     name,
     description,
+  });
+
+  await createActivityLog({
+    orgId: context.orgId,
+    userId: context.userId,
+    action: "department.created",
+    targetType: "department",
+    targetId: department.id,
+    metadata: { name },
   });
 
   revalidatePath("/admin/departments");
@@ -49,6 +59,15 @@ export async function updateDepartmentAction(formData: FormData) {
     departmentId,
     name,
     description,
+  });
+
+  await createActivityLog({
+    orgId: context.orgId,
+    userId: context.userId,
+    action: "department.updated",
+    targetType: "department",
+    targetId: departmentId,
+    metadata: { name },
   });
 
   revalidatePath("/admin/departments");

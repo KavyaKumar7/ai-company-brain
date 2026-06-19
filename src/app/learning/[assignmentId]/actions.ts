@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getOrgContext } from "@/lib/auth/get-org-context";
+import { createActivityLog } from "@/lib/data-access/activity-log";
 import { completeLesson } from "@/lib/data-access/onboarding";
 
 function getString(formData: FormData, key: string) {
@@ -30,6 +31,15 @@ export async function completeLessonAction(formData: FormData) {
     assignmentId,
     lessonId,
     userId: context.userId,
+  });
+
+  await createActivityLog({
+    orgId: context.orgId,
+    userId: context.userId,
+    action: "lesson.completed",
+    targetType: "onboarding_lesson",
+    targetId: lessonId,
+    metadata: { assignmentId },
   });
 
   revalidatePath(`/learning/${assignmentId}`);
