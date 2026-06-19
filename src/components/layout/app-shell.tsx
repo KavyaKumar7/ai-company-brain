@@ -4,6 +4,7 @@ import {
   BarChart3,
   BookOpenCheck,
   Building2,
+  Bot,
   FileText,
   GraduationCap,
   LayoutDashboard,
@@ -40,6 +41,12 @@ const navItems: NavItem[] = [
     href: "/learning",
     label: "My learning",
     icon: GraduationCap,
+    roles: ["admin", "manager", "employee"],
+  },
+  {
+    href: "/assistant",
+    label: "Assistant",
+    icon: Bot,
     roles: ["admin", "manager", "employee"],
   },
   {
