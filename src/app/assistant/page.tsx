@@ -122,7 +122,7 @@ export default async function AssistantPage({ searchParams }: AssistantPageProps
             <CardContent className="space-y-2 text-sm text-muted-foreground">
               <p>{approvedDocuments.length} approved documents</p>
               <p>
-                Add `ANTHROPIC_API_KEY` for Claude-generated answers. Without
+                Add `OPENAI_API_KEY` for OpenAI-generated answers. Without
                 it, the assistant uses safe extractive answers from citations.
               </p>
             </CardContent>

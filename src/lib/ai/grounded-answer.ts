@@ -47,7 +47,7 @@ export async function generateGroundedAnswer({
     };
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY;
 
   if (!apiKey) {
     return {
@@ -56,25 +56,19 @@ export async function generateGroundedAnswer({
     };
   }
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
+  const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
-      "anthropic-version": "2023-06-01",
+      Authorization: `Bearer ${apiKey}`,
       "content-type": "application/json",
-      "x-api-key": apiKey,
     },
     body: JSON.stringify({
-      model: process.env.ANTHROPIC_MODEL ?? "claude-3-5-sonnet-latest",
-      max_tokens: 900,
-      temperature: 0,
-      system:
+      model: process.env.OPENAI_MODEL ?? "gpt-5.4-mini",
+      max_output_tokens: 900,
+      reasoning: { effort: "none" },
+      instructions:
         "You answer employee questions using only the provided CONTEXT. If the context does not contain the answer, reply exactly: I don't have verified information on that. Do not use outside knowledge. Keep the answer concise and practical.",
-      messages: [
-        {
-          role: "user",
-          content: `CONTEXT:\n${buildContext(chunks)}\n\nQUESTION:\n${question}`,
-        },
-      ],
+      input: `CONTEXT:\n${buildContext(chunks)}\n\nQUESTION:\n${question}`,
     }),
   });
 
@@ -86,11 +80,15 @@ export async function generateGroundedAnswer({
   }
 
   const payload = (await response.json()) as {
-    content?: Array<{ type: string; text?: string }>;
+    output?: Array<{
+      type: string;
+      content?: Array<{ type: string; text?: string }>;
+    }>;
   };
   const answer =
-    payload.content
-      ?.map((item) => (item.type === "text" ? item.text ?? "" : ""))
+    payload.output
+      ?.flatMap((item) => (item.type === "message" ? item.content ?? [] : []))
+      .map((item) => (item.type === "output_text" ? item.text ?? "" : ""))
       .join("")
       .trim() || buildExtractiveAnswer(chunks);
 
