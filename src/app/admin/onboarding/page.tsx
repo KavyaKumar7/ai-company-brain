@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookOpenCheck } from "lucide-react";
+import { BookOpenCheck, FileCheck2, Sparkles } from "lucide-react";
 
 import { AdminHeader } from "@/components/admin/admin-header";
 import { StatusMessage } from "@/components/admin/status-message";
@@ -18,9 +18,10 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Select } from "@/components/ui/select";
 import { requireRole } from "@/lib/auth/require-role";
 import { listDepartments } from "@/lib/data-access/departments";
+import { listDocuments } from "@/lib/data-access/documents";
 import { listOnboardingPaths } from "@/lib/data-access/onboarding";
 
-import { createPathAction } from "./actions";
+import { createPathAction, generatePathAction } from "./actions";
 
 type OnboardingPageProps = {
   searchParams: Promise<{
@@ -36,10 +37,14 @@ export default async function AdminOnboardingPage({
     searchParams,
     requireRole("manager"),
   ]);
-  const [departments, paths] = await Promise.all([
+  const [departments, paths, documents] = await Promise.all([
     listDepartments(context.orgId),
     listOnboardingPaths(context.orgId),
+    listDocuments(context.orgId),
   ]);
+  const approvedDocuments = documents.filter(
+    (document) => document.status === "approved"
+  );
 
   return (
     <AppShell context={context}>
@@ -52,9 +57,125 @@ export default async function AdminOnboardingPage({
 
         <StatusMessage error={params.error} message={params.message} />
 
+        <Card className="border-primary/20 bg-[linear-gradient(145deg,color-mix(in_oklch,var(--card),var(--primary)_6%),var(--card))]">
+          <CardHeader className="border-b">
+            <div className="mb-2 flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <Sparkles className="size-[18px]" />
+            </div>
+            <CardTitle>Generate an onboarding draft</CardTitle>
+            <CardDescription>
+              Choose approved sources and OpenAI will create editable modules,
+              grounded lessons, and multiple-choice quizzes. Nothing is
+              published until you review it.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {approvedDocuments.length === 0 ? (
+              <EmptyState
+                icon={FileCheck2}
+                title="Approve knowledge before generating"
+                description="Onboarding drafts can only use extracted, approved company documents."
+                action={
+                  <Link
+                    className={buttonVariants({ variant: "outline" })}
+                    href="/admin/knowledge"
+                  >
+                    Review knowledge
+                  </Link>
+                }
+              />
+            ) : (
+              <form action={generatePathAction} className="space-y-5">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="generated-title">Path title</Label>
+                    <Input
+                      id="generated-title"
+                      name="title"
+                      placeholder="Real estate sales onboarding"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="generated-role">Target role</Label>
+                    <Select
+                      defaultValue="employee"
+                      id="generated-role"
+                      name="targetRole"
+                    >
+                      <option value="employee">Employee</option>
+                      <option value="manager">Manager</option>
+                      <option value="admin">Admin</option>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="generated-department">Department</Label>
+                    <Select
+                      defaultValue=""
+                      id="generated-department"
+                      name="departmentId"
+                    >
+                      <option value="">No department</option>
+                      {departments.map((department) => (
+                        <option key={department.id} value={department.id}>
+                          {department.name}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="durationDays">Target duration</Label>
+                    <Select defaultValue="5" id="durationDays" name="durationDays">
+                      <option value="3">3 days</option>
+                      <option value="5">5 days</option>
+                      <option value="7">7 days</option>
+                      <option value="14">14 days</option>
+                    </Select>
+                  </div>
+                </div>
+                <fieldset>
+                  <legend className="text-[13px] font-semibold text-foreground/85">
+                    Approved source documents
+                  </legend>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Select up to three sources. Every generated lesson will retain its source IDs.
+                  </p>
+                  <div className="mt-3 grid gap-2 md:grid-cols-2">
+                    {approvedDocuments.map((document) => (
+                      <label
+                        className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-background/35 p-3 transition-colors hover:border-primary/30 hover:bg-accent/30"
+                        key={document.id}
+                      >
+                        <input
+                          className="mt-0.5 size-4 accent-[var(--primary)]"
+                          name="documentIds"
+                          type="checkbox"
+                          value={document.id}
+                        />
+                        <span>
+                          <span className="block text-sm font-medium">{document.title}</span>
+                          <span className="mt-0.5 block text-xs text-muted-foreground">
+                            {document.departmentName ?? "All departments"} · approved
+                          </span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+                <Button size="lg" type="submit">
+                  <Sparkles className="size-4" />
+                  Generate editable draft
+                </Button>
+              </form>
+            )}
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
-            <CardTitle>Create onboarding path</CardTitle>
+            <CardTitle>Create manually</CardTitle>
             <CardDescription>
               Start with a simple path for a role or department.
             </CardDescription>

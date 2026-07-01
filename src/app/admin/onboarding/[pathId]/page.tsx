@@ -13,7 +13,9 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { Textarea } from "@/components/ui/textarea";
 import { requireRole } from "@/lib/auth/require-role";
 import { listOrganizationMembers } from "@/lib/data-access/memberships";
 import {
@@ -26,7 +28,9 @@ import {
   createLessonAction,
   createModuleAction,
   updateAssignmentStatusAction,
+  updateLessonAction,
   updatePathStatusAction,
+  updateQuizQuestionAction,
 } from "../actions";
 
 type OnboardingPathPageProps = {
@@ -56,10 +60,11 @@ export default async function AdminOnboardingPathPage({
     searchParams,
     requireRole("manager"),
   ]);
-  const { path, modules, lessonsByModule } = await getOnboardingPathWithModules({
-    orgId: context.orgId,
-    pathId,
-  });
+  const { path, modules, lessonsByModule, quizzesByLesson } =
+    await getOnboardingPathWithModules({
+      orgId: context.orgId,
+      pathId,
+    });
   const [members, assignments] = await Promise.all([
     listOrganizationMembers(context.orgId),
     listOnboardingAssignments({ orgId: context.orgId, pathId }),
@@ -70,7 +75,7 @@ export default async function AdminOnboardingPathPage({
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
         <AdminHeader
           title={path.title}
-          description="Build the manual module outline for this onboarding path."
+          description="Review and edit every lesson and quiz before publishing this onboarding path."
           role={context.role}
         />
 
@@ -91,8 +96,8 @@ export default async function AdminOnboardingPathPage({
               <input name="pathId" type="hidden" value={path.id} />
               <div className="space-y-2">
                 <Label htmlFor="status">Status</Label>
-                <select
-                  className="h-9 w-full min-w-40 rounded-lg border border-input bg-background px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                <Select
+                  className="min-w-40"
                   defaultValue={path.status}
                   id="status"
                   name="status"
@@ -100,7 +105,7 @@ export default async function AdminOnboardingPathPage({
                   <option value="draft">Draft</option>
                   <option value="published">Published</option>
                   <option value="archived">Archived</option>
-                </select>
+                </Select>
               </div>
               <Button type="submit">Update status</Button>
               <Link
@@ -117,8 +122,7 @@ export default async function AdminOnboardingPathPage({
           <CardHeader>
             <CardTitle>Add module</CardTitle>
             <CardDescription>
-              These are manual placeholders for now. Lessons, quizzes, and AI
-              generation come later.
+              Extend the generated draft or build a path manually.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -210,7 +214,7 @@ export default async function AdminOnboardingPathPage({
                           {(lessonsByModule.get(module.id) ?? []).map(
                             (lesson) => (
                               <div
-                                className="rounded-md bg-muted/60 p-3 text-sm"
+                                className="rounded-lg border border-border/70 bg-muted/25 p-4 text-sm"
                                 key={lesson.id}
                               >
                                 <div className="flex justify-between gap-3">
@@ -221,11 +225,89 @@ export default async function AdminOnboardingPathPage({
                                     {lesson.estimatedMinutes} min
                                   </span>
                                 </div>
+                                <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                                  <span>{lesson.sourceDocumentIds.length} approved source{lesson.sourceDocumentIds.length === 1 ? "" : "s"}</span>
+                                  {quizzesByLesson.get(lesson.id) ? (
+                                    <span>· {quizzesByLesson.get(lesson.id)!.questions.length} quiz questions</span>
+                                  ) : null}
+                                </div>
                                 {lesson.content ? (
-                                  <p className="mt-1 whitespace-pre-wrap text-muted-foreground">
+                                  <p className="mt-3 line-clamp-5 whitespace-pre-wrap leading-6 text-muted-foreground">
                                     {lesson.content}
                                   </p>
                                 ) : null}
+
+                                <details className="mt-4 rounded-lg border border-border/70 bg-background/35 p-3">
+                                  <summary className="cursor-pointer text-xs font-semibold text-primary">
+                                    Edit lesson and quiz
+                                  </summary>
+                                  <form action={updateLessonAction} className="mt-4 space-y-3">
+                                    <input name="pathId" type="hidden" value={path.id} />
+                                    <input name="lessonId" type="hidden" value={lesson.id} />
+                                    <div className="grid gap-3 md:grid-cols-[1fr_120px]">
+                                      <div className="space-y-2">
+                                        <Label htmlFor={`edit-lesson-title-${lesson.id}`}>Lesson title</Label>
+                                        <Input defaultValue={lesson.title} id={`edit-lesson-title-${lesson.id}`} name="title" required />
+                                      </div>
+                                      <div className="space-y-2">
+                                        <Label htmlFor={`edit-lesson-minutes-${lesson.id}`}>Minutes</Label>
+                                        <Input defaultValue={lesson.estimatedMinutes} id={`edit-lesson-minutes-${lesson.id}`} min={1} name="estimatedMinutes" type="number" />
+                                      </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label htmlFor={`edit-lesson-content-${lesson.id}`}>Lesson content</Label>
+                                      <Textarea defaultValue={lesson.content ?? ""} id={`edit-lesson-content-${lesson.id}`} name="content" required />
+                                    </div>
+                                    <Button size="sm" type="submit" variant="outline">Save lesson</Button>
+                                  </form>
+
+                                  {quizzesByLesson.get(lesson.id) ? (
+                                    <div className="mt-5 border-t border-border pt-4">
+                                      <div className="mb-3 flex items-center justify-between gap-3">
+                                        <h5 className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Knowledge check</h5>
+                                        <span className="text-xs text-muted-foreground">Pass: {quizzesByLesson.get(lesson.id)!.passScore}%</span>
+                                      </div>
+                                      <div className="space-y-3">
+                                        {quizzesByLesson.get(lesson.id)!.questions.map((question) => (
+                                          <form action={updateQuizQuestionAction} className="space-y-3 rounded-lg border border-border/70 p-3" key={question.id}>
+                                            <input name="pathId" type="hidden" value={path.id} />
+                                            <input name="questionId" type="hidden" value={question.id} />
+                                            <div className="space-y-2">
+                                              <Label htmlFor={`question-${question.id}`}>Question {question.orderIndex}</Label>
+                                              <Input defaultValue={question.prompt} id={`question-${question.id}`} name="prompt" required />
+                                            </div>
+                                            <div className="grid gap-2 md:grid-cols-2">
+                                              {question.options.map((option, optionIndex) => (
+                                                <Input defaultValue={option} key={`${question.id}-${optionIndex}`} name={`option${optionIndex}`} required />
+                                              ))}
+                                            </div>
+                                            <div className="grid gap-3 md:grid-cols-2">
+                                              <div className="space-y-2">
+                                                <Label htmlFor={`correct-${question.id}`}>Correct option</Label>
+                                                <Select
+                                                  defaultValue={Math.max(0, question.options.indexOf(question.correctAnswer))}
+                                                  id={`correct-${question.id}`}
+                                                  name="correctOptionIndex"
+                                                >
+                                                  {question.options.map((option, optionIndex) => (
+                                                    <option key={`${option}-${optionIndex}`} value={optionIndex}>
+                                                      Option {optionIndex + 1}: {option}
+                                                    </option>
+                                                  ))}
+                                                </Select>
+                                              </div>
+                                              <div className="space-y-2">
+                                                <Label htmlFor={`explanation-${question.id}`}>Explanation</Label>
+                                                <Input defaultValue={question.explanation ?? ""} id={`explanation-${question.id}`} name="explanation" />
+                                              </div>
+                                            </div>
+                                            <Button size="sm" type="submit" variant="outline">Save question</Button>
+                                          </form>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  ) : null}
+                                </details>
                               </div>
                             )
                           )}
@@ -279,8 +361,8 @@ export default async function AdminOnboardingPathPage({
                           <Label htmlFor={`lesson-content-${module.id}`}>
                             Lesson content
                           </Label>
-                          <textarea
-                            className="min-h-24 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                          <Textarea
+                            className="min-h-24"
                             id={`lesson-content-${module.id}`}
                             name="content"
                             placeholder="Write the manual lesson content here."
@@ -313,8 +395,7 @@ export default async function AdminOnboardingPathPage({
               <input name="pathId" type="hidden" value={path.id} />
               <div className="space-y-2">
                 <Label htmlFor="userId">Member</Label>
-                <select
-                  className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                <Select
                   id="userId"
                   name="userId"
                   required
@@ -330,7 +411,7 @@ export default async function AdminOnboardingPathPage({
                         {member.profile?.fullName || member.profile?.email}
                       </option>
                     ))}
-                </select>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="dueDate">Due date</Label>

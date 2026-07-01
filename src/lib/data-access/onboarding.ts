@@ -32,6 +32,25 @@ export type OnboardingLesson = {
   content: string | null;
   orderIndex: number;
   estimatedMinutes: number;
+  lessonType: "text" | "quiz";
+  sourceDocumentIds: string[];
+};
+
+export type OnboardingQuizQuestion = {
+  id: string;
+  quizId: string;
+  prompt: string;
+  options: string[];
+  correctAnswer: string;
+  explanation: string | null;
+  orderIndex: number;
+};
+
+export type OnboardingQuiz = {
+  id: string;
+  lessonId: string;
+  passScore: number;
+  questions: OnboardingQuizQuestion[];
 };
 
 export type OnboardingAssignment = {
@@ -131,6 +150,24 @@ type LessonRow = {
   content: string | null;
   order_index: number;
   estimated_minutes: number;
+  lesson_type?: "text" | "quiz";
+  source_document_ids?: string[];
+};
+
+type QuizRow = {
+  id: string;
+  lesson_id: string;
+  pass_score: number;
+};
+
+type QuizQuestionRow = {
+  id: string;
+  quiz_id: string;
+  prompt: string;
+  options: string[];
+  correct_answer: string;
+  explanation: string | null;
+  order_index: number;
 };
 
 type AssignmentRow = {
@@ -241,7 +278,20 @@ function mapLesson(row: LessonRow): OnboardingLesson {
     content: row.content,
     orderIndex: row.order_index,
     estimatedMinutes: row.estimated_minutes,
+    lessonType: row.lesson_type ?? "text",
+    sourceDocumentIds: row.source_document_ids ?? [],
   };
+}
+
+function isMissingQuizFoundation(message: string) {
+  return (
+    (message.includes("onboarding_quizzes") ||
+      message.includes("onboarding_quiz_questions") ||
+      message.includes("source_document_ids")) &&
+    (message.includes("schema cache") ||
+      message.includes("does not exist") ||
+      message.includes("Could not find"))
+  );
 }
 
 function normalizeProfile(row: AssignmentRow["profiles"]) {
@@ -346,32 +396,152 @@ export async function getOnboardingPathWithModules({
   const moduleRows = ((modules ?? []) as ModuleRow[]).map(mapModule);
   const moduleIds = moduleRows.map((module) => module.id);
   const lessonsByModule = new Map<string, OnboardingLesson[]>();
+  const quizzesByLesson = new Map<string, OnboardingQuiz>();
 
   if (moduleIds.length > 0) {
-    const { data: lessons, error: lessonsError } = await supabase
+    const lessonsResult = await supabase
       .from("onboarding_lessons")
-      .select("id, module_id, title, content, order_index, estimated_minutes")
+      .select(
+        "id, module_id, title, content, order_index, estimated_minutes, lesson_type, source_document_ids"
+      )
       .eq("organization_id", orgId)
       .in("module_id", moduleIds)
       .order("order_index", { ascending: true });
 
-    if (lessonsError) {
-      throw new Error(`Failed to load lessons: ${lessonsError.message}`);
+    let lessonRows: LessonRow[];
+
+    if (lessonsResult.error && isMissingQuizFoundation(lessonsResult.error.message)) {
+      const fallbackLessonsResult = await supabase
+        .from("onboarding_lessons")
+        .select("id, module_id, title, content, order_index, estimated_minutes")
+        .eq("organization_id", orgId)
+        .in("module_id", moduleIds)
+        .order("order_index", { ascending: true });
+
+      if (fallbackLessonsResult.error) {
+        throw new Error(`Failed to load lessons: ${fallbackLessonsResult.error.message}`);
+      }
+
+      lessonRows = (fallbackLessonsResult.data ?? []) as LessonRow[];
+    } else {
+      if (lessonsResult.error) {
+        throw new Error(`Failed to load lessons: ${lessonsResult.error.message}`);
+      }
+
+      lessonRows = (lessonsResult.data ?? []) as LessonRow[];
     }
 
-    ((lessons ?? []) as LessonRow[]).forEach((lessonRow) => {
+    lessonRows.forEach((lessonRow) => {
       const lesson = mapLesson(lessonRow);
       const existing = lessonsByModule.get(lesson.moduleId) ?? [];
       existing.push(lesson);
       lessonsByModule.set(lesson.moduleId, existing);
     });
+
+    const lessonIds = [...lessonsByModule.values()]
+      .flat()
+      .map((lesson) => lesson.id);
+
+    if (lessonIds.length > 0) {
+      const { data: quizzes, error: quizzesError } = await supabase
+        .from("onboarding_quizzes")
+        .select("id, lesson_id, pass_score")
+        .eq("organization_id", orgId)
+        .in("lesson_id", lessonIds);
+
+      if (quizzesError && !isMissingQuizFoundation(quizzesError.message)) {
+        throw new Error(`Failed to load quizzes: ${quizzesError.message}`);
+      }
+
+      const quizRows = (quizzes ?? []) as QuizRow[];
+      const quizIds = quizRows.map((quiz) => quiz.id);
+      const questionsByQuiz = new Map<string, OnboardingQuizQuestion[]>();
+
+      if (quizIds.length > 0) {
+        const { data: questions, error: questionsError } = await supabase
+          .from("onboarding_quiz_questions")
+          .select(
+            "id, quiz_id, prompt, options, correct_answer, explanation, order_index"
+          )
+          .eq("organization_id", orgId)
+          .in("quiz_id", quizIds)
+          .order("order_index", { ascending: true });
+
+        if (questionsError) {
+          throw new Error(`Failed to load quiz questions: ${questionsError.message}`);
+        }
+
+        ((questions ?? []) as QuizQuestionRow[]).forEach((row) => {
+          const existing = questionsByQuiz.get(row.quiz_id) ?? [];
+          existing.push({
+            id: row.id,
+            quizId: row.quiz_id,
+            prompt: row.prompt,
+            options: row.options,
+            correctAnswer: row.correct_answer,
+            explanation: row.explanation,
+            orderIndex: row.order_index,
+          });
+          questionsByQuiz.set(row.quiz_id, existing);
+        });
+      }
+
+      quizRows.forEach((row) => {
+        quizzesByLesson.set(row.lesson_id, {
+          id: row.id,
+          lessonId: row.lesson_id,
+          passScore: row.pass_score,
+          questions: questionsByQuiz.get(row.id) ?? [],
+        });
+      });
+    }
   }
 
   return {
     path: mapPath(path as PathRow),
     modules: moduleRows,
     lessonsByModule,
+    quizzesByLesson,
   };
+}
+
+export async function createGeneratedOnboardingPath({
+  orgId,
+  createdBy,
+  title,
+  targetRole,
+  departmentId,
+  sourceDocumentIds,
+  draft,
+}: {
+  orgId: string;
+  createdBy: string;
+  title: string;
+  targetRole: AppRole;
+  departmentId: string | null;
+  sourceDocumentIds: string[];
+  draft: unknown;
+}) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("create_generated_onboarding_path", {
+    p_organization_id: orgId,
+    p_created_by: createdBy,
+    p_title: title,
+    p_target_role: targetRole,
+    p_department_id: departmentId,
+    p_source_document_ids: sourceDocumentIds,
+    p_draft: draft,
+  });
+
+  if (error) {
+    throw new Error(
+      error.message.includes("create_generated_onboarding_path")
+        ? "Run migration 012 in Supabase before generating onboarding."
+        : `Failed to save generated onboarding: ${error.message}`
+    );
+  }
+
+  return data as string;
 }
 
 export async function createOnboardingPath({
@@ -484,6 +654,63 @@ export async function createOnboardingLesson({
   }
 
   return data;
+}
+
+export async function updateOnboardingLesson({
+  orgId,
+  lessonId,
+  title,
+  content,
+  estimatedMinutes,
+}: {
+  orgId: string;
+  lessonId: string;
+  title: string;
+  content: string;
+  estimatedMinutes: number;
+}) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("onboarding_lessons")
+    .update({ title, content, estimated_minutes: estimatedMinutes })
+    .eq("organization_id", orgId)
+    .eq("id", lessonId);
+
+  if (error) {
+    throw new Error(`Failed to update lesson: ${error.message}`);
+  }
+}
+
+export async function updateOnboardingQuizQuestion({
+  orgId,
+  questionId,
+  prompt,
+  options,
+  correctAnswer,
+  explanation,
+}: {
+  orgId: string;
+  questionId: string;
+  prompt: string;
+  options: string[];
+  correctAnswer: string;
+  explanation: string;
+}) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("onboarding_quiz_questions")
+    .update({
+      prompt,
+      options,
+      correct_answer: correctAnswer,
+      explanation,
+    })
+    .eq("organization_id", orgId)
+    .eq("id", questionId);
+
+  if (error) {
+    throw new Error(`Failed to update quiz question: ${error.message}`);
+  }
 }
 
 export async function listOnboardingAssignments({
