@@ -17,6 +17,7 @@ export async function createEmbeddings(inputs: string[]) {
   try {
     const response = await fetch("https://api.openai.com/v1/embeddings", {
       method: "POST",
+      signal: AbortSignal.timeout(12_000),
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "content-type": "application/json",

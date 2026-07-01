@@ -17,6 +17,7 @@ export type RetrievedChunk = {
 type ChunkSearchRow = {
   id: string;
   document_id: string;
+  chunk_index: number;
   content: string;
   embedding: number[] | string | null;
   page: number | null;
@@ -133,6 +134,26 @@ function cosineSimilarity(left: number[], right: number[]) {
   return dotProduct / (Math.sqrt(leftMagnitude) * Math.sqrt(rightMagnitude));
 }
 
+function isBroadSummaryQuestion(question: string) {
+  return /\b(summarise|summarize|summary|overview|main topics?|key topics?|what (?:is|was) .+ about)\b/i.test(
+    question
+  );
+}
+
+function pickEvenly<T>(items: T[], limit: number) {
+  if (items.length <= limit) {
+    return items;
+  }
+
+  if (limit === 1) {
+    return [items[0]];
+  }
+
+  return Array.from({ length: limit }, (_, index) =>
+    items[Math.round((index * (items.length - 1)) / (limit - 1))]
+  );
+}
+
 export async function retrieveApprovedChunks({
   orgId,
   question,
@@ -144,7 +165,6 @@ export async function retrieveApprovedChunks({
 }) {
   const supabase = await createClient();
   const terms = getQueryTerms(question);
-  const queryEmbedding = await createEmbedding(question);
 
   const { data, error } = await supabase
     .from("document_chunks")
@@ -152,6 +172,7 @@ export async function retrieveApprovedChunks({
       `
         id,
         document_id,
+        chunk_index,
         content,
         embedding,
         page,
@@ -165,6 +186,7 @@ export async function retrieveApprovedChunks({
     )
     .eq("organization_id", orgId)
     .eq("documents.status", "approved")
+    .order("chunk_index", { ascending: true })
     .limit(500);
 
   if (error) {
@@ -180,11 +202,12 @@ export async function retrieveApprovedChunks({
     throw new Error(`Failed to retrieve document chunks: ${error.message}`);
   }
 
-  return ((data ?? []) as unknown as ChunkSearchRow[])
-    .map((row) => {
-      const document = normalizeDocument(row.documents);
+  const candidates = ((data ?? []) as unknown as ChunkSearchRow[]).map((row) => {
+    const document = normalizeDocument(row.documents);
+    const keywordScore = scoreChunk(row.content, terms);
 
-      return {
+    return {
+      chunk: {
         id: row.id,
         documentId: row.document_id,
         documentTitle: document?.title ?? "Untitled document",
@@ -192,19 +215,49 @@ export async function retrieveApprovedChunks({
         page: row.page,
         section: row.section,
         content: row.content,
-        score: (() => {
-          const keywordScore = scoreChunk(row.content, terms);
-          const chunkEmbedding = parseEmbedding(row.embedding);
-          const semanticScore =
-            queryEmbedding && chunkEmbedding
-              ? cosineSimilarity(queryEmbedding, chunkEmbedding)
-              : null;
+        score: keywordScore,
+      } satisfies RetrievedChunk,
+      embedding: parseEmbedding(row.embedding),
+      keywordScore,
+    };
+  });
 
-          return semanticScore === null
+  if (candidates.length === 0) {
+    return [];
+  }
+
+  if (isBroadSummaryQuestion(question)) {
+    return pickEvenly(candidates, limit).map(({ chunk }) => chunk);
+  }
+
+  const keywordMatches = candidates
+    .filter(({ keywordScore }) => keywordScore > 0)
+    .sort((a, b) => b.keywordScore - a.keywordScore);
+
+  if (keywordMatches.length >= Math.min(3, limit)) {
+    return keywordMatches.slice(0, limit).map(({ chunk }) => chunk);
+  }
+
+  const queryEmbedding = await createEmbedding(question);
+
+  if (!queryEmbedding) {
+    const fallbackCandidates = keywordMatches.length > 0 ? keywordMatches : candidates;
+    return fallbackCandidates.slice(0, limit).map(({ chunk }) => chunk);
+  }
+
+  return candidates
+    .map(({ chunk, embedding, keywordScore }) => {
+      const semanticScore = embedding
+        ? cosineSimilarity(queryEmbedding, embedding)
+        : null;
+
+      return {
+        ...chunk,
+        score:
+          semanticScore === null
             ? keywordScore
-            : semanticScore + Math.min(keywordScore, 5) * 0.12;
-        })(),
-      } satisfies RetrievedChunk;
+            : semanticScore + Math.min(keywordScore, 5) * 0.12,
+      };
     })
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);

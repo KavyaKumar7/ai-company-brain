@@ -52,17 +52,18 @@ export async function askAssistantAction(formData: FormData) {
       conversationId = conversation.id;
     }
 
-    await createMessage({
-      orgId: context.orgId,
-      conversationId,
-      role: "user",
-      content: question,
-    });
-
-    const chunks = await retrieveApprovedChunks({
-      orgId: context.orgId,
-      question,
-    });
+    const [, chunks] = await Promise.all([
+      createMessage({
+        orgId: context.orgId,
+        conversationId,
+        role: "user",
+        content: question,
+      }),
+      retrieveApprovedChunks({
+        orgId: context.orgId,
+        question,
+      }),
+    ]);
     const { answer, usedAi } = await generateGroundedAnswer({
       question,
       chunks,
@@ -75,30 +76,30 @@ export async function askAssistantAction(formData: FormData) {
       citedChunkIds: chunks.map((chunk) => chunk.id),
     });
 
-    await touchConversation({
-      orgId: context.orgId,
-      conversationId,
-    });
-
-    if (answer === "I don't have verified information on that.") {
-      await createKnowledgeGap({
+    await Promise.all([
+      touchConversation({
+        orgId: context.orgId,
+        conversationId,
+      }),
+      answer === "I don't have verified information on that."
+        ? createKnowledgeGap({
+            orgId: context.orgId,
+            userId: context.userId,
+            question,
+          })
+        : Promise.resolve(),
+      createActivityLog({
         orgId: context.orgId,
         userId: context.userId,
-        question,
-      });
-    }
-
-    await createActivityLog({
-      orgId: context.orgId,
-      userId: context.userId,
-      action: "assistant.question_answered",
-      targetType: "message",
-      targetId: assistantMessage.id,
-      metadata: {
-        citedChunkCount: chunks.length,
-        usedAi,
-      },
-    });
+        action: "assistant.question_answered",
+        targetType: "message",
+        targetId: assistantMessage.id,
+        metadata: {
+          citedChunkCount: chunks.length,
+          usedAi,
+        },
+      }),
+    ]);
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Assistant could not answer.";
