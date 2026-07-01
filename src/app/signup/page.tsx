@@ -1,4 +1,5 @@
 import { SignupForm } from "@/components/auth/signup-form";
+import { AuthShell } from "@/components/auth/auth-shell";
 
 type SignupPageProps = {
   searchParams: Promise<{
@@ -11,8 +12,8 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
   const params = await searchParams;
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-6 py-12">
+    <AuthShell>
       <SignupForm error={params.error} inviteToken={params.inviteToken} />
-    </main>
+    </AuthShell>
   );
 }

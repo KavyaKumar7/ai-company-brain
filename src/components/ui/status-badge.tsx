@@ -35,11 +35,12 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
   return (
     <span
       className={cn(
-        "inline-flex w-fit items-center rounded-full border px-2.5 py-1 text-xs font-medium capitalize",
+        "inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold capitalize tracking-wide",
         statusStyles[status] ?? "border-muted bg-muted text-muted-foreground",
         className
       )}
     >
+      <span className="size-1.5 rounded-full bg-current opacity-80" />
       {formatStatus(status)}
     </span>
   );

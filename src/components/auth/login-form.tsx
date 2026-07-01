@@ -20,11 +20,12 @@ type LoginFormProps = {
 
 export function LoginForm({ error, message, next }: LoginFormProps) {
   return (
-    <Card className="w-full max-w-md">
+    <Card className="w-full border-border/70 bg-card/80 shadow-2xl shadow-black/15 backdrop-blur">
       <CardHeader>
-        <CardTitle>Log in</CardTitle>
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">Welcome back</p>
+        <CardTitle className="text-2xl">Log in to your workspace</CardTitle>
         <CardDescription>
-          Access your organization workspace and dashboard.
+          Continue to your company knowledge and onboarding command center.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -61,11 +62,11 @@ export function LoginForm({ error, message, next }: LoginFormProps) {
             />
           </div>
           <Button type="submit" className="w-full" size="lg">
-            Log in
+            Continue securely
           </Button>
         </form>
         <p className="mt-5 text-center text-sm text-muted-foreground">
-          Need a workspace?{" "}
+          New to Company Brain?{" "}
           <Link
             className="font-medium text-foreground underline"
             href="/signup"

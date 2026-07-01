@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BookOpenCheck } from "lucide-react";
 
 import { AdminHeader } from "@/components/admin/admin-header";
 import { StatusMessage } from "@/components/admin/status-message";
@@ -13,6 +14,8 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Select } from "@/components/ui/select";
 import { requireRole } from "@/lib/auth/require-role";
 import { listDepartments } from "@/lib/data-access/departments";
 import { listOnboardingPaths } from "@/lib/data-access/onboarding";
@@ -70,8 +73,7 @@ export default async function AdminOnboardingPage({
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="targetRole">Target role</Label>
-                  <select
-                    className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  <Select
                     defaultValue="employee"
                     id="targetRole"
                     name="targetRole"
@@ -79,14 +81,13 @@ export default async function AdminOnboardingPage({
                     <option value="employee">Employee</option>
                     <option value="manager">Manager</option>
                     <option value="admin">Admin</option>
-                  </select>
+                  </Select>
                 </div>
               </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="departmentId">Department</Label>
-                  <select
-                    className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  <Select
                     id="departmentId"
                     name="departmentId"
                     defaultValue=""
@@ -97,7 +98,7 @@ export default async function AdminOnboardingPage({
                         {department.name}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="description">Description</Label>
@@ -122,9 +123,11 @@ export default async function AdminOnboardingPage({
           </CardHeader>
           <CardContent>
             {paths.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No onboarding paths yet.
-              </p>
+              <EmptyState
+                icon={BookOpenCheck}
+                title="Create your first onboarding path"
+                description="Structure a role-specific learning journey, then add lessons and assign it to a team member."
+              />
             ) : (
               <div className="grid gap-3">
                 {paths.map((path) => (

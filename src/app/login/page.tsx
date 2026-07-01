@@ -1,4 +1,5 @@
 import { LoginForm } from "@/components/auth/login-form";
+import { AuthShell } from "@/components/auth/auth-shell";
 
 type LoginPageProps = {
   searchParams: Promise<{
@@ -12,12 +13,12 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-6 py-12">
+    <AuthShell>
       <LoginForm
         error={params.error}
         message={params.message}
         next={params.next}
       />
-    </main>
+    </AuthShell>
   );
 }

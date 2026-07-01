@@ -14,6 +14,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { getOrgContext } from "@/lib/auth/get-org-context";
 import {
   getConversationMessages,
@@ -157,8 +159,7 @@ export default async function AssistantPage({ searchParams }: AssistantPageProps
                 ) : null}
                 <div className="space-y-2">
                   <Label htmlFor="question">Question</Label>
-                  <textarea
-                    className="min-h-28 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  <Textarea
                     id="question"
                     name="question"
                     placeholder="What is our cancellation policy?"
@@ -236,15 +237,15 @@ export default async function AssistantPage({ searchParams }: AssistantPageProps
                               type="hidden"
                               value={findPreviousQuestion(messages, index)}
                             />
-                            <select
-                              className="h-8 rounded-lg border border-input bg-background px-2 text-xs"
+                            <Select
+                              className="h-8 min-w-28 text-xs"
                               name="rating"
                               required
                             >
                               <option value="helpful">Helpful</option>
                               <option value="incorrect">Incorrect</option>
                               <option value="outdated">Outdated</option>
-                            </select>
+                            </Select>
                             <input
                               className="h-8 min-w-48 rounded-lg border border-input bg-background px-2 text-xs"
                               name="note"

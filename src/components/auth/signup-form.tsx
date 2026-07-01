@@ -21,15 +21,16 @@ export function SignupForm({ error, inviteToken }: SignupFormProps) {
   const isInviteSignup = Boolean(inviteToken);
 
   return (
-    <Card className="w-full max-w-md">
+    <Card className="w-full border-border/70 bg-card/80 shadow-2xl shadow-black/15 backdrop-blur">
       <CardHeader>
-        <CardTitle>
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">Set up in minutes</p>
+        <CardTitle className="text-2xl">
           {isInviteSignup ? "Create your invited account" : "Create your workspace"}
         </CardTitle>
         <CardDescription>
           {isInviteSignup
             ? "Use the invited email address so we can attach you to the right organization."
-            : "Your account will become the admin for this organization."}
+            : "Create a secure workspace. You will begin as its administrator."}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -79,7 +80,7 @@ export function SignupForm({ error, inviteToken }: SignupFormProps) {
             </div>
           )}
           <Button type="submit" className="w-full" size="lg">
-            {isInviteSignup ? "Create account" : "Create workspace"}
+            {isInviteSignup ? "Join workspace" : "Create secure workspace"}
           </Button>
         </form>
         <p className="mt-5 text-center text-sm text-muted-foreground">

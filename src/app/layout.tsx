@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "AI Company Brain",
-  description: "B2B SaaS foundation for secure company workspaces.",
+  description: "Verified company knowledge, onboarding, and workforce enablement.",
 };
 
 export default function RootLayout({
