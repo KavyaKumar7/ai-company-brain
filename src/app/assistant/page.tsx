@@ -122,8 +122,8 @@ export default async function AssistantPage({ searchParams }: AssistantPageProps
             <CardContent className="space-y-2 text-sm text-muted-foreground">
               <p>{approvedDocuments.length} approved documents</p>
               <p>
-                Add `OPENAI_API_KEY` for OpenAI-generated answers. Without
-                it, the assistant uses safe extractive answers from citations.
+                OpenAI generation and semantic retrieval use approved,
+                extracted document chunks only.
               </p>
             </CardContent>
           </Card>
@@ -142,8 +142,8 @@ export default async function AssistantPage({ searchParams }: AssistantPageProps
             <CardHeader>
               <CardTitle>Ask a question</CardTitle>
               <CardDescription>
-                Try a question that is answerable from an approved TXT document
-                you have uploaded and extracted.
+                Ask for a fact, explanation, or summary from your approved
+                company knowledge.
               </CardDescription>
             </CardHeader>
             <CardContent>

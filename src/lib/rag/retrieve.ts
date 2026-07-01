@@ -1,5 +1,6 @@
 import "server-only";
 
+import { createEmbedding } from "@/lib/ai/embeddings";
 import { createClient } from "@/lib/supabase/server";
 
 export type RetrievedChunk = {
@@ -17,6 +18,7 @@ type ChunkSearchRow = {
   id: string;
   document_id: string;
   content: string;
+  embedding: number[] | string | null;
   page: number | null;
   section: string | null;
   documents:
@@ -91,6 +93,46 @@ function scoreChunk(content: string, terms: string[]) {
   }, 0);
 }
 
+function parseEmbedding(value: ChunkSearchRow["embedding"]) {
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const parsed = value
+    .replace(/^\[/, "")
+    .replace(/\]$/, "")
+    .split(",")
+    .map(Number);
+
+  return parsed.every(Number.isFinite) ? parsed : null;
+}
+
+function cosineSimilarity(left: number[], right: number[]) {
+  if (left.length !== right.length || left.length === 0) {
+    return null;
+  }
+
+  let dotProduct = 0;
+  let leftMagnitude = 0;
+  let rightMagnitude = 0;
+
+  for (let index = 0; index < left.length; index += 1) {
+    dotProduct += left[index] * right[index];
+    leftMagnitude += left[index] ** 2;
+    rightMagnitude += right[index] ** 2;
+  }
+
+  if (leftMagnitude === 0 || rightMagnitude === 0) {
+    return null;
+  }
+
+  return dotProduct / (Math.sqrt(leftMagnitude) * Math.sqrt(rightMagnitude));
+}
+
 export async function retrieveApprovedChunks({
   orgId,
   question,
@@ -102,10 +144,7 @@ export async function retrieveApprovedChunks({
 }) {
   const supabase = await createClient();
   const terms = getQueryTerms(question);
-
-  if (terms.length === 0) {
-    return [];
-  }
+  const queryEmbedding = await createEmbedding(question);
 
   const { data, error } = await supabase
     .from("document_chunks")
@@ -114,6 +153,7 @@ export async function retrieveApprovedChunks({
         id,
         document_id,
         content,
+        embedding,
         page,
         section,
         documents!inner (
@@ -125,7 +165,7 @@ export async function retrieveApprovedChunks({
     )
     .eq("organization_id", orgId)
     .eq("documents.status", "approved")
-    .limit(200);
+    .limit(500);
 
   if (error) {
     if (
@@ -152,10 +192,20 @@ export async function retrieveApprovedChunks({
         page: row.page,
         section: row.section,
         content: row.content,
-        score: scoreChunk(row.content, terms),
+        score: (() => {
+          const keywordScore = scoreChunk(row.content, terms);
+          const chunkEmbedding = parseEmbedding(row.embedding);
+          const semanticScore =
+            queryEmbedding && chunkEmbedding
+              ? cosineSimilarity(queryEmbedding, chunkEmbedding)
+              : null;
+
+          return semanticScore === null
+            ? keywordScore
+            : semanticScore + Math.min(keywordScore, 5) * 0.12;
+        })(),
       } satisfies RetrievedChunk;
     })
-    .filter((chunk) => chunk.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
 }

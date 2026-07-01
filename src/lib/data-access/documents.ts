@@ -446,6 +446,7 @@ export async function replaceDocumentChunks({
     page?: number | null;
     section?: string | null;
     tokenCount: number;
+    embedding?: number[] | null;
   }>;
 }) {
   const supabase = await createClient();
@@ -475,6 +476,7 @@ export async function replaceDocumentChunks({
         page: chunk.page ?? null,
         section: chunk.section ?? null,
         token_count: chunk.tokenCount,
+        embedding: chunk.embedding ?? null,
       }))
     )
     .select(

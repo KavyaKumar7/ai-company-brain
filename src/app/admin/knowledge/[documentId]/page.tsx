@@ -137,8 +137,8 @@ export default async function AdminKnowledgeDocumentPage({
           <CardHeader>
             <CardTitle>Processing</CardTitle>
             <CardDescription>
-              TXT extraction is available now. PDF, DOCX, and PPTX extraction
-              will move into the background job pipeline.
+              TXT files are extracted automatically on upload. Reprocess a TXT
+              file here to refresh its searchable chunks and embeddings.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -155,7 +155,7 @@ export default async function AdminKnowledgeDocumentPage({
                   type="submit"
                   variant="outline"
                 >
-                  Extract TXT chunks
+                  Reprocess TXT
                 </Button>
               </form>
               {document.fileType !== "text/plain" ? (
@@ -267,8 +267,8 @@ export default async function AdminKnowledgeDocumentPage({
           <CardHeader>
             <CardTitle>Extracted chunks</CardTitle>
             <CardDescription>
-              These chunks are the future retrieval units for cited AI answers.
-              Embeddings are added in the next AI pipeline step.
+              These searchable chunks provide grounded context and citations
+              for AI answers.
             </CardDescription>
           </CardHeader>
           <CardContent>

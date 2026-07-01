@@ -4,10 +4,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireRole } from "@/lib/auth/require-role";
+import { createEmbeddings } from "@/lib/ai/embeddings";
 import { createActivityLog } from "@/lib/data-access/activity-log";
 import {
   createDocument,
   getDocumentById,
+  listDocumentChunks,
   replaceDocumentChunks,
   updateDocumentMetadata,
   updateDocumentProcessingState,
@@ -98,6 +100,15 @@ function chunkText(text: string) {
   return chunks;
 }
 
+async function addEmbeddings<T extends { content: string }>(chunks: T[]) {
+  const embeddings = await createEmbeddings(chunks.map((chunk) => chunk.content));
+
+  return chunks.map((chunk, index) => ({
+    ...chunk,
+    embedding: embeddings?.[index] ?? null,
+  }));
+}
+
 export async function uploadDocumentAction(formData: FormData) {
   const context = await requireRole("manager");
   const fileValue = formData.get("file");
@@ -161,6 +172,25 @@ export async function uploadDocumentAction(formData: FormData) {
         fileType: document.fileType,
       },
     });
+
+    if (fileValue.type === "text/plain") {
+      const chunks = chunkText(new TextDecoder().decode(bytes));
+
+      if (chunks.length > 0) {
+        await replaceDocumentChunks({
+          orgId: context.orgId,
+          documentId: document.id,
+          chunks: await addEmbeddings(chunks),
+        });
+        await updateDocumentProcessingState({
+          orgId: context.orgId,
+          documentId: document.id,
+          status: "ready_for_review",
+          processingError: null,
+          summary: `Extracted ${chunks.length} searchable text chunks from ${fileValue.name}.`,
+        });
+      }
+    }
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Document record could not be created.";
@@ -173,7 +203,13 @@ export async function uploadDocumentAction(formData: FormData) {
 
   revalidatePath(pagePath);
   revalidatePath("/dashboard");
-  redirectWithParam(pagePath, "message", "Document uploaded for review.");
+  redirectWithParam(
+    pagePath,
+    "message",
+    fileValue.type === "text/plain"
+      ? "TXT document uploaded and made searchable. Review it before approval."
+      : "Document uploaded for review."
+  );
 }
 
 export async function updateDocumentMetadataAction(formData: FormData) {
@@ -230,6 +266,21 @@ export async function updateDocumentStatusAction(formData: FormData) {
 
   if (!documentId || !allowedStatuses.has(status)) {
     redirectWithParam("/admin/knowledge", "error", "Choose a valid document status.");
+  }
+
+  if (status === "approved") {
+    const chunks = await listDocumentChunks({
+      orgId: context.orgId,
+      documentId,
+    });
+
+    if (chunks.length === 0) {
+      redirectWithParam(
+        pagePath,
+        "error",
+        "Extract this document before approving it. The assistant cannot search a document with zero chunks."
+      );
+    }
   }
 
   await updateDocumentStatus({
@@ -314,7 +365,7 @@ export async function processTextDocumentAction(formData: FormData) {
     await replaceDocumentChunks({
       orgId: context.orgId,
       documentId,
-      chunks,
+      chunks: await addEmbeddings(chunks),
     });
   } catch (error) {
     await updateDocumentProcessingState({
